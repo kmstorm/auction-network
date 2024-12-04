@@ -5,11 +5,11 @@ MODEL_DIR = ../model
 all: server client
 
 # Tạo chương trình server và client
-server: server.o message.o user.o auction_room.o
-	gcc -o server server.o message.o user.o auction_room.o
+server: server.o message.o user.o auction_room.o item.o
+	gcc -o server server.o message.o user.o auction_room.o item.o
 
-client: client.o message.o user.o auction_room.o
-	gcc -o client client.o message.o user.o auction_room.o
+client: client.o message.o user.o auction_room.o item.o
+	gcc -o client client.o message.o user.o auction_room.o item.o
 
 # Biên dịch server.o
 server.o: $(APP_DIR)/server.c $(MODEL_DIR)/message.h $(MODEL_DIR)/user.h
@@ -28,6 +28,9 @@ user.o: $(MODEL_DIR)/user.c $(MODEL_DIR)/user.h
 
 auction_room.o: $(MODEL_DIR)/auction_room.c $(MODEL_DIR)/auction_room.h
 	gcc -c $(MODEL_DIR)/auction_room.c -o auction_room.o
+
+item.o: $(MODEL_DIR)/item.c $(MODEL_DIR)/item.h
+	gcc -c  $(MODEL_DIR)/item.c  -o item.o
 
 # Quy tắc dọn dẹp
 clean:
