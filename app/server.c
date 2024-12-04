@@ -136,14 +136,74 @@ int main()
                             build_message(&message, 4, "Admin privileges required");
                         }
                         break;
-                    case 5: // IS_ADMIN_REQUEST
+                    case 5: // CREATE_ITEM_REQUEST
                         if (is_admin(username))
                         {
-                            build_message(&message, 5, "Admin");
+                            // Parse the message for room_id, item details
+                            int room_id;
+                            char name[50], description[200];
+                            float starting_price;
+                            sscanf(message.payload, "%d|%s|%s|%f", &room_id, name, description, &starting_price);
+
+                            if (create_item_in_room(1, room_id, name, description, starting_price)) // Admin id 1
+                            {
+                                build_message(&message, 5, "Item created successfully");
+                            }
+                            else
+                            {
+                                build_message(&message, 5, "Item creation failed");
+                            }
                         }
                         else
                         {
-                            build_message(&message, 5, "Not Admin");
+                            build_message(&message, 5, "Admin privileges required");
+                        }
+                        break;
+                    case 6: //DELETE_ITEM_REQUEST
+                        if (is_admin(username))
+                        {
+                            int room_id, item_id;
+                            sscanf(message.payload, "%d|%d", &room_id, &item_id);
+
+                            if (delete_item_from_room(1, room_id, item_id))
+                            {
+                                build_message(&message, 6, "Item deleted successfully");
+                            }
+                            else
+                            {
+                                build_message(&message, 6, "Item deletion failed");
+                            }
+                        }
+                        else
+                        {
+                            build_message(&message, 6, "Admin privileges required");
+                        }
+                        break;
+                    case 7: // LIST_ITEMS_REQUEST
+                        if (is_admin(username))  
+                        {
+                            int room_id;
+                            sscanf(message.payload, "%d", &room_id);  // Get the room ID from the message
+
+                            list_room_items(room_id); 
+
+                            build_message(&message, 7, "Items listed successfully.");
+                            send(sock, &message, sizeof(Message), 0);
+                        }
+                        else
+                        {
+                            build_message(&message, 7, "Admin privileges required");
+                            send(sock, &message, sizeof(Message), 0);
+                        }
+                        break;
+                    case 8: // IS_ADMIN_REQUEST
+                        if (is_admin(username))
+                        {
+                            build_message(&message, 7, "Admin");
+                        }
+                        else
+                        {
+                            build_message(&message, 7, "Not Admin");
                         }
                         break;
                     }

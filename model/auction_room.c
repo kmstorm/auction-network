@@ -1,4 +1,5 @@
 #include "auction_room.h"
+#include "item.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,7 +48,7 @@ int create_room(int admin_id, const char *name, const char *description, const c
   {
     return 0; // Only admin can create rooms
   }
-
+  load_rooms_from_file();
   if (room_count < MAX_ROOMS)
   {
     AuctionRoom new_room;
@@ -73,7 +74,7 @@ int delete_room(int admin_id, int room_id)
   {
     return 0;
   }
-
+  load_rooms_from_file();
   for (int i = 0; i < room_count; i++)
   {
     if (rooms[i].id == room_id)
@@ -94,6 +95,7 @@ int delete_room(int admin_id, int room_id)
 /* List all rooms */
 void list_rooms()
 {
+  load_rooms_from_file();
   for (int i = 0; i < room_count; i++)
   {
     printf("ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n", rooms[i].id, rooms[i].name, rooms[i].status,
@@ -158,4 +160,21 @@ int leave_room(int user_id, int room_id)
   }
 
   return 0;
+}
+
+void list_room_items(int room_id)
+{
+  list_items(room_id); 
+}
+
+/* Create an item in the room - only admin can do this */
+int create_item_in_room(int admin_id, int room_id, const char *name, const char *description, float starting_price)
+{
+  return create_item(admin_id, room_id, name, description, starting_price);
+}
+
+/* Delete an item from the room - only admin can do this */
+int delete_item_from_room(int admin_id, int room_id, int item_id)
+{
+  return delete_item(admin_id, room_id, item_id);
 }

@@ -19,7 +19,10 @@ enum MessageType {
     LOGOUT_REQUEST = 2,
     CREATE_ROOM_REQUEST = 3,
     DELETE_ROOM_REQUEST = 4,
-    IS_ADMIN_REQUEST = 5
+    CREATE_ITEM_REQUEST = 5,
+    DELETE_ITEM_REQUEST = 6,
+    LIST_ITEMS_REQUEST = 7,
+    IS_ADMIN_REQUEST = 8
 };
 
 void send_register_request(int sock, const char *username, const char *password);
@@ -27,6 +30,9 @@ void send_login_request(int sock, const char *username, const char *password);
 void send_logout_request(int sock, const char *username);
 void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, const char *end_time);
 void send_delete_room_request(int sock, int room_id);
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price);
+void send_delete_item_request(int sock, int room_id, int item_id);
+void send_list_items_request(int sock, int room_id);
 void send_is_admin_request(int sock, const char *username);
 int is_admin_response(int sock);
 
@@ -116,6 +122,9 @@ int main()
             {
                 printf("3. Create Room\n");
                 printf("4. Delete Room\n");
+                printf("5. Add item");
+                printf("6. Delete item");
+                printf("7. List items");
             }
 
             printf("Enter your choice: ");
@@ -176,6 +185,60 @@ int main()
                 }
                 break;
 
+            case 5: // Add Item
+                if (is_admin)
+                {
+                    int room_id, starting_price;
+                    char item_name[50], item_description[200];
+                    printf("Enter room ID: ");
+                    scanf("%d", &room_id);
+                    printf("Enter item name: ");
+                    scanf("%s", item_name);
+                    printf("Enter item description: ");
+                    scanf("%s", item_description);
+                    printf("Enter starting price: ");
+                    scanf("%d", &starting_price);
+
+                    send_create_item_request(sock, room_id, item_name, item_description, starting_price);
+                    if (recv(sock, &response, sizeof(Message), 0) > 0)
+                    {
+                        printf("Server response: %s\n", response.payload);
+                    }
+                }
+                break;
+
+            case 6: // Remove Item
+                if (is_admin)
+                {   
+                    int item_id, room_id;
+                    printf("Enter room ID: ");
+                    scanf("%d", &room_id);
+                    printf("Enter item ID to remove: ");
+                    scanf("%d", &item_id);
+
+                    send_delete_item_request(sock, room_id, item_id);
+                    if (recv(sock, &response, sizeof(Message), 0) > 0)
+                    {
+                        printf("Server response: %s\n", response.payload);
+                    }
+                }
+                break;
+
+            case 7: // List Items
+                if (is_admin)
+                {
+                    int room_id;
+                    printf("Enter room ID: ");
+                    scanf("%d", &room_id);
+
+                    send_list_items_request(sock, room_id);
+                    if (recv(sock, &response, sizeof(Message), 0) > 0)
+                    {
+                        printf("Server response: %s\n", response.payload);
+                    }
+                }
+                break;
+
             default:
                 printf("Invalid choice. Please try again.\n");
             }
@@ -224,6 +287,30 @@ void send_delete_room_request(int sock, int room_id)
 {
     Message message;
     message.message_type = DELETE_ROOM_REQUEST;
+    snprintf(message.payload, sizeof(message.payload), "%d", room_id);
+    send(sock, &message, sizeof(message), 0);
+}
+
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price)
+{
+    Message message;
+    message.message_type = 5;  // CREATE_ITEM_REQUEST
+    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%f", room_id, name, description, starting_price);
+    send(sock, &message, sizeof(message), 0);
+}
+
+void send_delete_item_request(int sock, int room_id, int item_id)
+{
+    Message message;
+    message.message_type = 6;  // DELETE_ITEM_REQUEST
+    snprintf(message.payload, sizeof(message.payload), "%d|%d", room_id, item_id);
+    send(sock, &message, sizeof(message), 0);
+}
+
+void send_list_items_request(int sock, int room_id)
+{
+    Message message;
+    message.message_type = 7;  // LIST_ITEMS_REQUEST (This will be handled by the server accordingly)
     snprintf(message.payload, sizeof(message.payload), "%d", room_id);
     send(sock, &message, sizeof(message), 0);
 }
