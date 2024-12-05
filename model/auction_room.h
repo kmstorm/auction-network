@@ -1,7 +1,7 @@
 #ifndef __AUCTION_ROOM__
 #define __AUCTION_ROOM__
 
-#define MAX_ROOMS 100
+#define MAX_ROOMS 10
 #define ROOM_FILE "rooms.txt"
 
 typedef struct

@@ -9,20 +9,29 @@ static int item_count = 0;
 /* Load items from file */
 void load_items_from_file()
 {
+  printf("Log_LOAD_ITEMS: Opening item file\n");
   FILE *file = fopen(ITEM_FILE, "r");
   if (!file)
   {
-    printf("No item file found, starting fresh.\n");
+    printf("Log_LOAD_ITEMS: No item file found, starting fresh.\n");
     return;
   }
 
+  printf("Log_LOAD_ITEMS: Reading items from file\n");
   while (fscanf(file, "%d %d %49s %199s %f %d\n", &items[item_count].id, &items[item_count].room_id, items[item_count].name, items[item_count].description,
                  &items[item_count].starting_price, &items[item_count].status) != EOF)
   {
+    printf("Log_LOAD_ITEMS: Loaded item with id=%d, name=%s\n", items[item_count].id, items[item_count].name);
     item_count++;
+    if (item_count >= MAX_ITEMS)
+    {
+      printf("Log_LOAD_ITEMS: Maximum item count reached\n");
+      break;
+    }
   }
 
   fclose(file);
+  printf("Log_LOAD_ITEMS: Finished loading items\n");
 }
 
 /* Save item to file */
@@ -39,15 +48,35 @@ void save_item_to_file(const Item *item)
   fclose(file);
 }
 
+/* Save all items to file */
+void save_all_items_to_file()
+{
+  FILE *file = fopen(ITEM_FILE, "w");
+  if (!file)
+  {
+    perror("Failed to open item file");
+    return;
+  }
+
+  for (int i = 0; i < item_count; i++)
+  {
+    fprintf(file, "%d %d %s %s %f %d\n", items[i].id, items[i].room_id, items[i].name, items[i].description, items[i].starting_price, items[i].status);
+  }
+
+  fclose(file);
+}
+
 /* Create a new item - only admin can do this */
 int create_item(int admin_id, int room_id, const char *name, const char *description, float starting_price)
 {
+  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%f\n", admin_id, room_id, name, description, starting_price);
+
   if (admin_id != 1) // Only admin (id 1) can create items
   {
+    printf("Log_CREATE_ITEM: Only admin can create items\n");
     return 0; // Permission denied
   }
 
-  load_items_from_file();
   if (item_count < MAX_ITEMS)
   {
     Item new_item;
@@ -60,9 +89,11 @@ int create_item(int admin_id, int room_id, const char *name, const char *descrip
 
     save_item_to_file(&new_item);
     items[item_count++] = new_item;
+    printf("Log_CREATE_ITEM: Item created successfully with id=%d\n", new_item.id);
     return 1;
   }
 
+  printf("Log_CREATE_ITEM: Item creation failed, max items reached\n");
   return 0;
 }
 
@@ -71,10 +102,10 @@ int delete_item(int admin_id, int room_id, int item_id)
 {
   if (admin_id != 1) // Only admin can delete items
   {
+    printf("Log_DELETE_ITEM: Only admin can delete items\n");
     return 0;
   }
 
-  load_items_from_file();
   for (int i = 0; i < item_count; i++)
   {
     if (items[i].room_id == room_id && items[i].id == item_id)
@@ -85,26 +116,27 @@ int delete_item(int admin_id, int room_id, int item_id)
         items[j] = items[j + 1];
       }
       item_count--;
+      save_all_items_to_file(); // Save updated items to file
+      printf("Log_DELETE_ITEM: Item with id %d deleted successfully\n", item_id);
       return 1; // Item successfully deleted
     }
   }
 
+  printf("Log_DELETE_ITEM: Item with id %d not found\n", item_id);
   return 0; // Item not found
 }
 
 /* List all items in a specific room */
 void list_items(int room_id)
 {
-    load_items_from_file();  // Load the items from the file before listing them
-
     int item_found = 0;
     for (int i = 0; i < item_count; i++)
     {
         if (items[i].room_id == room_id)  // Only list items for the specified room
         {
-            printf("ID: %d, Name: %s, Price: %.2f, Status: %s\n", 
-                   items[i].id, items[i].name, items[i].starting_price,
-                   items[i].status == 0 ? "Available" : "Sold");
+            printf("ID: %d, Name: %s, Price: %.2f, Status: %s\n",
+                  items[i].id, items[i].name, items[i].starting_price,
+                  items[i].status == 0 ? "Available" : "Sold");
             item_found = 1;
         }
     }

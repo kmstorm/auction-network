@@ -122,9 +122,9 @@ int main()
             {
                 printf("3. Create Room\n");
                 printf("4. Delete Room\n");
-                printf("5. Add item");
-                printf("6. Delete item");
-                printf("7. List items");
+                printf("5. Add item\n");
+                printf("6. Delete item\n");
+                printf("7. List items\n");
             }
 
             printf("Enter your choice: ");
@@ -139,7 +139,7 @@ int main()
                 if (recv(sock, &response, sizeof(Message), 0) > 0)
                 {
                     printf("Server response: %s\n", response.payload);
-                    logged_in = 0; // Mark user as logged out
+                    logged_in = 0;
                 }
                 break;
 
@@ -150,92 +150,106 @@ int main()
             case 3:
                 if (is_admin)
                 {
+                    char room_name[50], description[200], start_time[20], end_time[20];
+                    printf("Enter room name: ");
+                    scanf("%s", room_name);
+                    printf("Enter description: ");
+                    scanf("%s", description);
+                    printf("Enter start time: ");
+                    scanf("%s", start_time);
+                    printf("Enter end time: ");
+                    scanf("%s", end_time);
+                    send_create_room_request(sock, room_name, description, start_time, end_time);
+                    if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
-                        char room_name[50], description[200], start_time[20], end_time[20];
-                        printf("Enter room name: ");
-                        scanf("%s", room_name);
-                        printf("Enter description: ");
-                        scanf("%s", description);
-                        printf("Enter start time: ");
-                        scanf("%s", start_time);
-                        printf("Enter end time: ");
-                        scanf("%s", end_time);
-                        send_create_room_request(sock, room_name, description, start_time, end_time);
-                        if (recv(sock, &response, sizeof(Message), 0) > 0)
-                        {
-                            printf("Server response: %s\n", response.payload);
-                        }
+                        printf("Server response: %s\n", response.payload);
                     }
+                }
+                else
+                {
+                    printf("Admin privileges required.\n");
                 }
                 break;
 
             case 4:
                 if (is_admin)
                 {
-                    {
-                        int room_id;
-                        printf("Enter room ID to delete: ");
-                        scanf("%d", &room_id);
-                        send_delete_room_request(sock, room_id);
-                        if (recv(sock, &response, sizeof(Message), 0) > 0)
-                        {
-                            printf("Server response: %s\n", response.payload);
-                        }
-                    }
-                }
-                break;
-
-            case 5: // Add Item
-                if (is_admin)
-                {
-                    int room_id, starting_price;
-                    char item_name[50], item_description[200];
-                    printf("Enter room ID: ");
+                    int room_id;
+                    printf("Enter room ID to delete: ");
                     scanf("%d", &room_id);
-                    printf("Enter item name: ");
-                    scanf("%s", item_name);
-                    printf("Enter item description: ");
-                    scanf("%s", item_description);
-                    printf("Enter starting price: ");
-                    scanf("%d", &starting_price);
-
-                    send_create_item_request(sock, room_id, item_name, item_description, starting_price);
+                    send_delete_room_request(sock, room_id);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
                     }
                 }
+                else
+                {
+                    printf("Admin privileges required.\n");
+                }
                 break;
 
-            case 6: // Remove Item
+            case 5:
                 if (is_admin)
-                {   
-                    int item_id, room_id;
+                {
+                    int room_id;
+                    char name[50], description[200];
+                    float starting_price;
                     printf("Enter room ID: ");
                     scanf("%d", &room_id);
-                    printf("Enter item ID to remove: ");
-                    scanf("%d", &item_id);
+                    printf("Enter item name: ");
+                    scanf("%s", name);
+                    printf("Enter item description: ");
+                    scanf("%s", description);
+                    printf("Enter starting price: ");
+                    scanf("%f", &starting_price);
+                    send_create_item_request(sock, room_id, name, description, starting_price);
+                    if (recv(sock, &response, sizeof(Message), 0) > 0)
+                    {
+                        printf("Server response: %s\n", response.payload);
+                    }
+                }
+                else
+                {
+                    printf("Admin privileges required.\n");
+                }
+                break;
 
+            case 6:
+                if (is_admin)
+                {
+                    int room_id, item_id;
+                    printf("Enter room ID: ");
+                    scanf("%d", &room_id);
+                    printf("Enter item ID to delete: ");
+                    scanf("%d", &item_id);
                     send_delete_item_request(sock, room_id, item_id);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
                     }
                 }
+                else
+                {
+                    printf("Admin privileges required.\n");
+                }
                 break;
 
-            case 7: // List Items
+            case 7:
                 if (is_admin)
                 {
                     int room_id;
                     printf("Enter room ID: ");
                     scanf("%d", &room_id);
-
                     send_list_items_request(sock, room_id);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
                     }
+                }
+                else
+                {
+                    printf("Admin privileges required.\n");
                 }
                 break;
 
@@ -245,7 +259,6 @@ int main()
         }
     }
 
-    close(sock);
     return 0;
 }
 
@@ -327,22 +340,11 @@ void send_is_admin_request(int sock, const char *username)
 // Function to process the admin status response from the server
 
 int is_admin_response(int sock)
-
 {
-
     Message response;
-
     if (recv(sock, &response, sizeof(Message), 0) > 0)
-
     {
-
-        if (strcmp(response.payload, "Admin") == 0)
-
-        {
-
-            return 1; // User is an admin
-        }
+        return strcmp(response.payload, "Admin") == 0;
     }
-
-    return 0; // User is not an admin
+    return 0;
 }

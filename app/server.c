@@ -8,6 +8,7 @@
 #include "../model/message.h"
 #include "../model/user.h"
 #include "../model/auction_room.h"
+#include "../model/item.h"
 
 #define PORT 8080
 #define MAX_CLIENTS 30
@@ -23,6 +24,8 @@ int main()
     load_users_from_file();
     printf("Log_SERVER: Loading rooms from file\n");
     load_rooms_from_file();
+    printf("Log_SERVER: Loading items from file\n");
+    load_items_from_file();
 
     printf("Log_SERVER: Creating server socket\n");
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -133,7 +136,7 @@ int main()
                         logout_user(username);
                         build_message(&message, 2, "Logout successful");
                         break;
-                    case 3:                     // CREATE_ROOM_REQUEST
+                    case 3: // CREATE_ROOM_REQUEST
                         if (is_admin(username)) // Only allow if user is an admin
                         {
                             // Call auction room create function
@@ -153,7 +156,7 @@ int main()
                             build_message(&message, 3, "Admin privileges required");
                         }
                         break;
-                    case 4:                     // DELETE_ROOM_REQUEST
+                    case 4: // DELETE_ROOM_REQUEST
                         if (is_admin(username)) // Only allow if user is an admin
                         {
                             int room_id;
@@ -179,9 +182,9 @@ int main()
                             int room_id;
                             char name[50], description[200];
                             float starting_price;
-                            sscanf(message.payload, "%d|%s|%s|%f", &room_id, name, description, &starting_price);
+                            sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f", &room_id, name, description, &starting_price);
 
-                            if (create_item_in_room(1, room_id, name, description, starting_price)) // Admin id 1
+                            if (create_item(1, room_id, name, description, starting_price)) // Admin id 1
                             {
                                 build_message(&message, 5, "Item created successfully");
                             }
@@ -195,13 +198,13 @@ int main()
                             build_message(&message, 5, "Admin privileges required");
                         }
                         break;
-                    case 6: //DELETE_ITEM_REQUEST
+                    case 6: // DELETE_ITEM_REQUEST
                         if (is_admin(username))
                         {
                             int room_id, item_id;
                             sscanf(message.payload, "%d|%d", &room_id, &item_id);
 
-                            if (delete_item_from_room(1, room_id, item_id))
+                            if (delete_item(1, room_id, item_id))
                             {
                                 build_message(&message, 6, "Item deleted successfully");
                             }
@@ -216,12 +219,12 @@ int main()
                         }
                         break;
                     case 7: // LIST_ITEMS_REQUEST
-                        if (is_admin(username))  
+                        if (is_admin(username))
                         {
                             int room_id;
                             sscanf(message.payload, "%d", &room_id);  // Get the room ID from the message
 
-                            list_room_items(room_id); 
+                            list_items(room_id);
 
                             build_message(&message, 7, "Items listed successfully.");
                             send(sock, &message, sizeof(Message), 0);
@@ -235,11 +238,11 @@ int main()
                     case 8: // IS_ADMIN_REQUEST
                         if (is_admin(username))
                         {
-                            build_message(&message, 7, "Admin");
+                            build_message(&message, 8, "Admin");
                         }
                         else
                         {
-                            build_message(&message, 7, "Not Admin");
+                            build_message(&message, 8, "Not Admin");
                         }
                         break;
                     }
