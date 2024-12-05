@@ -41,11 +41,32 @@ void save_room_to_file(const AuctionRoom *room)
   fclose(file);
 }
 
+/* Save all rooms to file */
+void save_all_rooms_to_file()
+{
+  FILE *file = fopen(ROOM_FILE, "w");
+  if (!file)
+  {
+    perror("Failed to open room file");
+    return;
+  }
+
+  for (int i = 0; i < room_count; i++)
+  {
+    fprintf(file, "%d %s %s %d %s %s\n", rooms[i].id, rooms[i].name, rooms[i].description, rooms[i].status, rooms[i].start_time, rooms[i].end_time);
+  }
+
+  fclose(file);
+}
+
 /* Create a new room - only admin can do this */
 int create_room(int admin_id, const char *name, const char *description, const char *start_time, const char *end_time)
 {
+  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, description=%s, start_time=%s, end_time=%s\n", admin_id, name, description, start_time, end_time);
+
   if (admin_id != 1) // Assuming 1 is admin id
   {
+    printf("Log_CREATE_ROOM: Only admin can create rooms\n");
     return 0; // Only admin can create rooms
   }
   load_rooms_from_file();
@@ -61,9 +82,11 @@ int create_room(int admin_id, const char *name, const char *description, const c
 
     save_room_to_file(&new_room);
     rooms[room_count++] = new_room;
+    printf("Log_CREATE_ROOM: Room created successfully with id=%d\n", new_room.id);
     return 1;
   }
 
+  printf("Log_CREATE_ROOM: Room creation failed, max rooms reached\n");
   return 0;
 }
 
@@ -85,6 +108,7 @@ int delete_room(int admin_id, int room_id)
         rooms[j] = rooms[j + 1];
       }
       room_count--;
+      save_all_rooms_to_file(); // Save updated rooms to file
       return 1;
     }
   }
@@ -99,7 +123,7 @@ void list_rooms()
   for (int i = 0; i < room_count; i++)
   {
     printf("ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n", rooms[i].id, rooms[i].name, rooms[i].status,
-           rooms[i].start_time, rooms[i].end_time);
+      rooms[i].start_time, rooms[i].end_time);
   }
 }
 
@@ -108,7 +132,7 @@ int join_room(int user_id, int room_id)
 {
   if (user_id == 0) // Assuming 0 is a guest or invalid user
   {
-    return 0; // User must be logged in to join a room
+    return 0; // User must be log_create_roomged in to join a room
   }
 
   // Check if user is already in another room

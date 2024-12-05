@@ -18,9 +18,7 @@ void load_users_from_file()
 
   while (fscanf(file, "%49s %49s %d %d\n", users[user_count].username, users[user_count].password, &users[user_count].status, &users[user_count].role) != EOF)
   {
-    printf("Loaded user: %s, Role: %d\n", users[user_count].username, users[user_count].role);
     user_count++;
-    printf("User count: %d\n", user_count);
   }
 
   fclose(file);

@@ -18,6 +18,7 @@ typedef struct
 /* Function */
 void load_rooms_from_file();
 void save_room_to_file(const AuctionRoom *room);
+void save_all_rooms_to_file();
 int create_room(int admin_id, const char *name, const char *description, const char *start_time, const char *end_time);
 int delete_room(int admin_id, int room_id);
 void list_rooms();

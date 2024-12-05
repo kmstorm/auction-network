@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <errno.h>
 #include "../model/message.h"
 #include "../model/user.h"
 #include "../model/auction_room.h"
@@ -18,17 +19,40 @@ int main()
     fd_set read_fds;
     socklen_t addr_len = sizeof(client_addr);
 
+    printf("Log_SERVER: Loading users from file\n");
     load_users_from_file();
+    printf("Log_SERVER: Loading rooms from file\n");
     load_rooms_from_file();
 
+    printf("Log_SERVER: Creating server socket\n");
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sock == 0)
+    {
+        perror("Log_SERVER: Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    listen(server_sock, 3);
-    printf("Server listening on port %d\n", PORT);
+    printf("Log_SERVER: Binding server socket\n");
+    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        perror("Log_SERVER: Bind failed");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Log_SERVER: Listening on port %d\n", PORT);
+    if (listen(server_sock, 3) < 0)
+    {
+        perror("Log_SERVER: Listen failed");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Log_SERVER: Server listening on port %d\n", PORT);
 
     while (1)
     {
@@ -44,19 +68,29 @@ int main()
                 max_sd = client_socks[i];
         }
 
-        select(max_sd + 1, &read_fds, NULL, NULL, NULL);
+        printf("Log_SERVER: Waiting for activity\n");
+        int activity = select(max_sd + 1, &read_fds, NULL, NULL, NULL);
+        if ((activity < 0) && (errno != EINTR))
+        {
+            printf("Log_SERVER: Select error\n");
+        }
 
         // New connection
         if (FD_ISSET(server_sock, &read_fds))
         {
             int new_sock = accept(server_sock, (struct sockaddr *)&client_addr, &addr_len);
-            printf("New connection accepted\n");
+            if (new_sock < 0)
+            {
+                perror("Log_SERVER: Accept failed");
+                exit(EXIT_FAILURE);
+            }
+            printf("Log_SERVER: New connection accepted\n");
             for (int i = 0; i < MAX_CLIENTS; i++)
             {
                 if (client_socks[i] == 0)
                 {
                     client_socks[i] = new_sock;
-                    printf("Added client socket to list: %d\n", new_sock);
+                    printf("Log_SERVER: Added client socket to list: %d\n", new_sock);
                     break;
                 }
             }
@@ -68,9 +102,11 @@ int main()
             if (FD_ISSET(sock, &read_fds))
             {
                 Message message;
-                if (recv(sock, &message, sizeof(Message), 0) > 0)
+                int valread = recv(sock, &message, sizeof(Message), 0);
+                if (valread > 0)
                 {
                     char username[50], password[50];
+                    printf("Log_SERVER: Received message of type %d\n", message.message_type);
                     switch (message.message_type)
                     {
                     case 0: // REGISTER_REQUEST
@@ -102,7 +138,7 @@ int main()
                         {
                             // Call auction room create function
                             char room_name[50], description[200], start_time[20], end_time[20];
-                            sscanf(message.payload, "%s|%s|%s|%s", room_name, description, start_time, end_time);
+                            sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%19s", room_name, description, start_time, end_time);
                             if (create_room(1, room_name, description, start_time, end_time)) // 1 indicates admin
                             {
                                 build_message(&message, 3, "Room created successfully");
@@ -211,6 +247,7 @@ int main()
                 }
                 else
                 {
+                    printf("Log_SERVER: Client disconnected, socket %d\n", sock);
                     close(sock);
                     client_socks[i] = 0;
                 }
