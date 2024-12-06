@@ -1,6 +1,8 @@
 #ifndef __AUCTION_ROOM__
 #define __AUCTION_ROOM__
 
+#include <stddef.h>
+
 #define MAX_ROOMS 10
 #define ROOM_FILE "rooms.txt"
 
@@ -21,7 +23,7 @@ void save_room_to_file(const AuctionRoom *room);
 void save_all_rooms_to_file();
 int create_room(int admin_id, const char *name, const char *description, const char *start_time, const char *end_time);
 int delete_room(int admin_id, int room_id);
-void list_rooms();
+void list_rooms(char *room_list, size_t room_list_size);
 int join_room(int user_id, int room_id);
 int leave_room(int user_id, int room_id);
 void list_room_items(int room_id);

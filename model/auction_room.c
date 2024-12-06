@@ -117,78 +117,85 @@ int delete_room(int admin_id, int room_id)
 }
 
 /* List all rooms */
-void list_rooms()
+void list_rooms(char *room_list, size_t room_list_size)
 {
-  load_rooms_from_file();
-  for (int i = 0; i < room_count; i++)
-  {
-    printf("ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n", rooms[i].id, rooms[i].name, rooms[i].status,
-      rooms[i].start_time, rooms[i].end_time);
-  }
+    room_list[0] = '\0'; // Initialize the room list string
+    for (int i = 0; i < room_count; i++)
+    {
+        char room_info[256];
+        snprintf(room_info, sizeof(room_info), "ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n",
+                rooms[i].id, rooms[i].name, rooms[i].status, rooms[i].start_time, rooms[i].end_time);
+        strncat(room_list, room_info, room_list_size - strlen(room_list) - 1);
+    }
 }
 
 /* Join a room */
 int join_room(int user_id, int room_id)
 {
-  if (user_id == 0) // Assuming 0 is a guest or invalid user
-  {
-    return 0; // User must be log_create_roomged in to join a room
-  }
-
-  // Check if user is already in another room
-  for (int i = 0; i < room_count; i++)
-  {
-    for (int j = 0; j < MAX_ROOMS; j++)
+    printf("Log_JOIN_ROOM: join_room called with user_id=%d, room_id=%d\n", user_id, room_id);
+    if (user_id == 0) // Assuming 0 is a guest or invalid user
     {
-      if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
-      {
-        return 0; // User is already in another room
-      }
+        return 0; // User must be logged in to join a room
     }
-  }
 
-  for (int i = 0; i < room_count; i++)
-  {
-    if (rooms[i].id == room_id)
+    // Check if user is already in another room
+    for (int i = 0; i < room_count; i++)
     {
-      for (int j = 0; j < MAX_ROOMS; j++)
-      {
-        if (strcmp(rooms[i].participants[j], "") == 0)
+        for (int j = 0; j < MAX_ROOMS; j++)
         {
-          snprintf(rooms[i].participants[j], 50, "%d", user_id);
-          return 1;
+            if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+            {
+                return 0; // User is already in another room
+            }
         }
-      }
     }
-  }
 
-  return 0;
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            for (int j = 0; j < MAX_ROOMS; j++)
+            {
+                if (strcmp(rooms[i].participants[j], "") == 0)
+                {
+                    snprintf(rooms[i].participants[j], 50, "%d", user_id);
+                    printf("Log_JOIN_ROOM: User %d joined room %d\n", user_id, room_id);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    printf("Log_JOIN_ROOM: Room %d not found or full\n", room_id);
+    return 0;
 }
 
 /* Leave a room */
 int leave_room(int user_id, int room_id)
 {
-  for (int i = 0; i < room_count; i++)
-  {
-    if (rooms[i].id == room_id)
+    printf("Log_LEAVE_ROOM: leave_room called with user_id=%d, room_id=%d\n", user_id, room_id);
+    for (int i = 0; i < room_count; i++)
     {
-      for (int j = 0; j < MAX_ROOMS; j++)
-      {
-        if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+        if (rooms[i].id == room_id)
         {
-          strcpy(rooms[i].participants[j], "");
-          return 1;
+            for (int j = 0; j < MAX_ROOMS; j++)
+            {
+                if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+                {
+                    strcpy(rooms[i].participants[j], "");
+                    printf("Log_LEAVE_ROOM: User %d left room %d\n", user_id, room_id);
+                    return 1;
+                }
+            }
         }
-      }
     }
-  }
-
-  return 0;
+    printf("Log_LEAVE_ROOM: User %d not found in room %d\n", user_id, room_id);
+    return 0;
 }
 
 void list_room_items(int room_id)
 {
-  list_items(room_id); 
+  list_items(room_id);
 }
 
 /* Create an item in the room - only admin can do this */

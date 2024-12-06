@@ -105,6 +105,7 @@ int main()
             if (FD_ISSET(sock, &read_fds))
             {
                 Message message;
+                memset(&message, 0, sizeof(Message)); // Clear the message buffer
                 int valread = recv(sock, &message, sizeof(Message), 0);
                 if (valread > 0)
                 {
@@ -123,20 +124,29 @@ int main()
                         }
                         break;
                     case 1: // LOGIN_REQUEST
-                        if (parse_credentials(&message, username, password) && login_user(username, password))
+                    {
+                        int user_id;
+                        if (parse_credentials(&message, username, password) && login_user(username, password, &user_id))
                         {
-                            build_message(&message, 1, "Login successful");
+                            char response_payload[BUFFER_SIZE];
+                            snprintf(response_payload, sizeof(response_payload), "Login successful|%d", user_id);
+                            build_message(&message, 1, response_payload);
+                            printf("Log_SERVER: Login successful for user %s with ID %d\n", username, user_id);
                         }
                         else
                         {
                             build_message(&message, 1, "Login failed");
+                            printf("Log_SERVER: Login failed for user %s\n", username);
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
+                    }
                     case 2: // LOGOUT_REQUEST
                         logout_user(username);
                         build_message(&message, 2, "Logout successful");
+                        send(sock, &message, sizeof(Message), 0);
                         break;
-                    case 3: // CREATE_ROOM_REQUEST
+                    case 3:                     // CREATE_ROOM_REQUEST
                         if (is_admin(username)) // Only allow if user is an admin
                         {
                             // Call auction room create function
@@ -155,8 +165,9 @@ int main()
                         {
                             build_message(&message, 3, "Admin privileges required");
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
-                    case 4: // DELETE_ROOM_REQUEST
+                    case 4:                     // DELETE_ROOM_REQUEST
                         if (is_admin(username)) // Only allow if user is an admin
                         {
                             int room_id;
@@ -174,6 +185,7 @@ int main()
                         {
                             build_message(&message, 4, "Admin privileges required");
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     case 5: // CREATE_ITEM_REQUEST
                         if (is_admin(username))
@@ -197,6 +209,7 @@ int main()
                         {
                             build_message(&message, 5, "Admin privileges required");
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     case 6: // DELETE_ITEM_REQUEST
                         if (is_admin(username))
@@ -217,12 +230,13 @@ int main()
                         {
                             build_message(&message, 6, "Admin privileges required");
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     case 7: // LIST_ITEMS_REQUEST
                         if (is_admin(username))
                         {
                             int room_id;
-                            sscanf(message.payload, "%d", &room_id);  // Get the room ID from the message
+                            sscanf(message.payload, "%d", &room_id); // Get the room ID from the message
 
                             list_items(room_id);
 
@@ -236,17 +250,63 @@ int main()
                         }
                         break;
                     case 8: // IS_ADMIN_REQUEST
+                    {
+                        printf("Log_SERVER: IS_ADMIN_REQUEST received for user %s\n", username);
                         if (is_admin(username))
                         {
                             build_message(&message, 8, "Admin");
+                            printf("Log_SERVER: User %s is an admin\n", username);
                         }
                         else
                         {
                             build_message(&message, 8, "Not Admin");
+                            printf("Log_SERVER: User %s is not an admin\n", username);
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     }
-                    send(sock, &message, sizeof(Message), 0);
+                    case 9: // JOIN_ROOM_REQUEST
+                    {
+                        int user_id, room_id;
+                        sscanf(message.payload, "%d|%d", &user_id, &room_id);
+                        printf("Log_SERVER: JOIN_ROOM_REQUEST received for user_id=%d, room_id=%d\n", user_id, room_id);
+                        if (join_room(user_id, room_id))
+                        {
+                            build_message(&message, 9, "Joined room successfully");
+                        }
+                        else
+                        {
+                            build_message(&message, 9, "Failed to join room");
+                        }
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 10: // LEAVE_ROOM_REQUEST
+                    {
+                        int user_id, room_id;
+                        sscanf(message.payload, "%d|%d", &user_id, &room_id);
+                        printf("Log_SERVER: LEAVE_ROOM_REQUEST received for user_id=%d, room_id=%d\n", user_id, room_id);
+                        if (leave_room(user_id, room_id))
+                        {
+                            build_message(&message, 10, "Left room successfully");
+                        }
+                        else
+                        {
+                            build_message(&message, 10, "Failed to leave room");
+                        }
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 11: // LIST_ROOMS_REQUEST
+                    {
+                        printf("Log_SERVER: LIST_ROOMS_REQUEST received\n");
+                        char room_list[BUFFER_SIZE] = "";
+                        list_rooms(room_list, sizeof(room_list));
+                        build_message(&message, 11, room_list);
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    }
                 }
                 else
                 {

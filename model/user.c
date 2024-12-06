@@ -16,7 +16,7 @@ void load_users_from_file()
     return;
   }
 
-  while (fscanf(file, "%49s %49s %d %d\n", users[user_count].username, users[user_count].password, &users[user_count].status, &users[user_count].role) != EOF)
+  while (fscanf(file, "%d %49s %49s %d %d\n", &users[user_count].id, users[user_count].username, users[user_count].password, &users[user_count].status, &users[user_count].role) != EOF)
   {
     user_count++;
   }
@@ -34,7 +34,7 @@ void save_user_to_file(const User *user)
     return;
   }
 
-  fprintf(file, "%s %s %d %d\n", user->username, user->password, user->status, user->role);
+  fprintf(file, "%d %s %s %d %d\n", user->id, user->username, user->password, user->status, user->role);
   fclose(file);
 }
 
@@ -51,6 +51,7 @@ int register_user(const char *username, const char *password)
 
   if (user_count < MAX_USERS)
   {
+    users[user_count].id = user_count + 1; // Assign a unique ID
     strcpy(users[user_count].username, username);
     strcpy(users[user_count].password, password);
     users[user_count].status = 0; // Initially logged out
@@ -64,16 +65,20 @@ int register_user(const char *username, const char *password)
 }
 
 /* Login user */
-int login_user(const char *username, const char *password)
+int login_user(const char *username, const char *password, int *user_id)
 {
+  printf("Log_LOGIN: Attempting to log in user: %s\n", username);
   for (int i = 0; i < user_count; i++)
   {
     if (strcmp(users[i].username, username) == 0 && strcmp(users[i].password, password) == 0)
     {
       users[i].status = 1; // Mark as logged in
+      *user_id = users[i].id; // Return the user's ID
+      printf("Log_LOGIN: User %s logged in successfully with ID %d\n", username, *user_id);
       return 1;
     }
   }
+  printf("Log_LOGIN: Login failed for user: %s\n", username);
   return 0;
 }
 
