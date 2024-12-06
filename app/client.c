@@ -108,7 +108,6 @@ int main()
                     {
                         logged_in = 1; // Mark user as logged in
                         sscanf(response.payload, "Login successful|%d", &user_id); // Parse user ID
-                        printf("Log_CLIENT: Logged in successfully with user ID %d\n", user_id);
 
                         send_is_admin_request(sock, username);
 
@@ -116,7 +115,7 @@ int main()
                     }
                     else
                     {
-                        printf("Log_CLIENT: Login failed\n");
+                        printf("Login failed\n");
                     }
                 }
                 break;

@@ -122,6 +122,7 @@ int main()
                         {
                             build_message(&message, 0, "Registration failed");
                         }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     case 1: // LOGIN_REQUEST
                     {
