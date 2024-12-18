@@ -97,12 +97,15 @@ void logout_user(const char *username)
 
 int is_admin(const char *username)
 {
+  printf("Log_IS_ADMIN: Checking if user %s is admin\n", username);
   for (int i = 0; i < user_count; i++)
   {
     if (strcmp(users[i].username, username) == 0)
     {
+      printf("Log_IS_ADMIN: User %s found with role %d\n", username, users[i].role);
       return users[i].role == 1; // 1 means admin
     }
   }
+  printf("Log_IS_ADMIN: User %s not found or not an admin\n", username);
   return 0; // Not found or not an admin
 }

@@ -147,109 +147,83 @@ int main()
                         build_message(&message, 2, "Logout successful");
                         send(sock, &message, sizeof(Message), 0);
                         break;
-                    case 3:                     // CREATE_ROOM_REQUEST
-                        if (is_admin(username)) // Only allow if user is an admin
+                    case 3: // CREATE_ROOM_REQUEST
+                    {
+                        // Call auction room create function
+                        char room_name[50], description[200], start_time[20], end_time[20];
+                        sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%19s", room_name, description, start_time, end_time);
+                        if (create_room(1, room_name, description, start_time, end_time)) // 1 indicates admin
                         {
-                            // Call auction room create function
-                            char room_name[50], description[200], start_time[20], end_time[20];
-                            sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%19s", room_name, description, start_time, end_time);
-                            if (create_room(1, room_name, description, start_time, end_time)) // 1 indicates admin
-                            {
-                                build_message(&message, 3, "Room created successfully");
-                            }
-                            else
-                            {
-                                build_message(&message, 3, "Room creation failed");
-                            }
+                            build_message(&message, 3, "Room created successfully");
                         }
                         else
                         {
-                            build_message(&message, 3, "Admin privileges required");
+                            build_message(&message, 3, "Room creation failed");
                         }
                         send(sock, &message, sizeof(Message), 0);
                         break;
-                    case 4:                     // DELETE_ROOM_REQUEST
-                        if (is_admin(username)) // Only allow if user is an admin
+                    }
+                    case 4: // DELETE_ROOM_REQUEST
+                    {
+                        int room_id;
+                        sscanf(message.payload, "%d", &room_id);
+                        if (delete_room(1, room_id)) // 1 indicates admin
                         {
-                            int room_id;
-                            sscanf(message.payload, "%d", &room_id);
-                            if (delete_room(1, room_id)) // 1 indicates admin
-                            {
-                                build_message(&message, 4, "Room deleted successfully");
-                            }
-                            else
-                            {
-                                build_message(&message, 4, "Room deletion failed");
-                            }
+                            build_message(&message, 4, "Room deleted successfully");
                         }
                         else
                         {
-                            build_message(&message, 4, "Admin privileges required");
+                            build_message(&message, 4, "Room deletion failed");
                         }
                         send(sock, &message, sizeof(Message), 0);
                         break;
+                    }
                     case 5: // CREATE_ITEM_REQUEST
-                        if (is_admin(username))
-                        {
-                            // Parse the message for room_id, item details
-                            int room_id;
-                            char name[50], description[200];
-                            float starting_price;
-                            sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f", &room_id, name, description, &starting_price);
+                    {
+                        // Parse the message for room_id, item details
+                        int room_id;
+                        char name[50], description[200];
+                        float starting_price;
+                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f", &room_id, name, description, &starting_price);
 
-                            if (create_item(1, room_id, name, description, starting_price)) // Admin id 1
-                            {
-                                build_message(&message, 5, "Item created successfully");
-                            }
-                            else
-                            {
-                                build_message(&message, 5, "Item creation failed");
-                            }
+                        if (create_item(1, room_id, name, description, starting_price)) // Admin id 1
+                        {
+                            build_message(&message, 5, "Item created successfully");
                         }
                         else
                         {
-                            build_message(&message, 5, "Admin privileges required");
+                            build_message(&message, 5, "Item creation failed");
                         }
                         send(sock, &message, sizeof(Message), 0);
                         break;
+                    }
                     case 6: // DELETE_ITEM_REQUEST
-                        if (is_admin(username))
-                        {
-                            int room_id, item_id;
-                            sscanf(message.payload, "%d|%d", &room_id, &item_id);
+                    {
+                        int room_id, item_id;
+                        sscanf(message.payload, "%d|%d", &room_id, &item_id);
 
-                            if (delete_item(1, room_id, item_id))
-                            {
-                                build_message(&message, 6, "Item deleted successfully");
-                            }
-                            else
-                            {
-                                build_message(&message, 6, "Item deletion failed");
-                            }
+                        if (delete_item(1, room_id, item_id))
+                        {
+                            build_message(&message, 6, "Item deleted successfully");
                         }
                         else
                         {
-                            build_message(&message, 6, "Admin privileges required");
+                            build_message(&message, 6, "Item deletion failed");
                         }
                         send(sock, &message, sizeof(Message), 0);
                         break;
+                    }
                     case 7: // LIST_ITEMS_REQUEST
-                        if (is_admin(username))
-                        {
-                            int room_id;
-                            sscanf(message.payload, "%d", &room_id); // Get the room ID from the message
+                    {
+                        int room_id;
+                        sscanf(message.payload, "%d", &room_id); // Get the room ID from the message
 
-                            list_items(room_id);
+                        list_items(room_id);
 
-                            build_message(&message, 7, "Items listed successfully.");
-                            send(sock, &message, sizeof(Message), 0);
-                        }
-                        else
-                        {
-                            build_message(&message, 7, "Admin privileges required");
-                            send(sock, &message, sizeof(Message), 0);
-                        }
+                        build_message(&message, 7, "Items listed successfully.");
+                        send(sock, &message, sizeof(Message), 0);
                         break;
+                    }
                     case 8: // IS_ADMIN_REQUEST
                     {
                         printf("Log_SERVER: IS_ADMIN_REQUEST received for user %s\n", username);
@@ -307,13 +281,20 @@ int main()
                         send(sock, &message, sizeof(Message), 0);
                         break;
                     }
+                    default:
+                        printf("Log_SERVER: Unknown message type %d\n", message.message_type);
                     }
+                }
+                else if (valread == 0)
+                {
+                    // Client disconnected
+                    printf("Log_SERVER: Client disconnected\n");
+                    close(sock);
+                    client_socks[i] = 0;
                 }
                 else
                 {
-                    printf("Log_SERVER: Client disconnected, socket %d\n", sock);
-                    close(sock);
-                    client_socks[i] = 0;
+                    perror("Log_SERVER: recv failed");
                 }
             }
         }
