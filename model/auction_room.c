@@ -1,4 +1,5 @@
 #include "auction_room.h"
+#include "countdown_timer.h"
 #include "item.h"
 #include <stdio.h>
 #include <string.h>
@@ -18,8 +19,8 @@ void load_rooms_from_file()
     return;
   }
 
-  while (fscanf(file, "%d %49s %199s %d %19s %19s\n", &rooms[room_count].id, rooms[room_count].name, rooms[room_count].description,
-                &rooms[room_count].status, rooms[room_count].start_time, rooms[room_count].end_time) != EOF)
+  while (fscanf(file, "%d %49s %199s %d %19s %d\n", &rooms[room_count].id, rooms[room_count].name, rooms[room_count].description,
+                &rooms[room_count].status, rooms[room_count].start_time, &rooms[room_count].duration) != EOF)
   {
     room_count++;
   }
@@ -37,7 +38,7 @@ void save_room_to_file(const AuctionRoom *room)
     return;
   }
 
-  fprintf(file, "%d %s %s %d %s %s\n", room->id, room->name, room->description, room->status, room->start_time, room->end_time);
+  fprintf(file, "%d %s %s %d %s %d\n", room->id, room->name, room->description, room->status, room->start_time, room->duration);
   fclose(file);
 }
 
@@ -53,16 +54,28 @@ void save_all_rooms_to_file()
 
   for (int i = 0; i < room_count; i++)
   {
-    fprintf(file, "%d %s %s %d %s %s\n", rooms[i].id, rooms[i].name, rooms[i].description, rooms[i].status, rooms[i].start_time, rooms[i].end_time);
+    fprintf(file, "%d %s %s %d %s %d\n", rooms[i].id, rooms[i].name, rooms[i].description, rooms[i].status, rooms[i].start_time, rooms[i].duration);
   }
 
   fclose(file);
 }
 
-/* Create a new room - only admin can do this */
-int create_room(int admin_id, const char *name, const char *description, const char *start_time, const char *end_time)
+AuctionRoom* get_room_by_id(int room_id)
 {
-  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, description=%s, start_time=%s, end_time=%s\n", admin_id, name, description, start_time, end_time);
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            return &rooms[i];
+        }
+    }
+    return NULL;
+}
+
+/* Create a new room - only admin can do this */
+int create_room(int admin_id, const char *name, const char *description, const char *start_time, int duration)
+{
+  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, description=%s, start_time=%s, duration=%d\n", admin_id, name, description, start_time, duration);
 
   if (admin_id != 1) // Assuming 1 is admin id
   {
@@ -77,7 +90,7 @@ int create_room(int admin_id, const char *name, const char *description, const c
     strcpy(new_room.name, name);
     strcpy(new_room.description, description);
     strcpy(new_room.start_time, start_time);
-    strcpy(new_room.end_time, end_time);
+    new_room.duration = duration;
     new_room.status = 0; // Room is not started yet
 
     save_room_to_file(&new_room);
@@ -123,10 +136,36 @@ void list_rooms(char *room_list, size_t room_list_size)
     for (int i = 0; i < room_count; i++)
     {
         char room_info[256];
-        snprintf(room_info, sizeof(room_info), "ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n",
-                rooms[i].id, rooms[i].name, rooms[i].status, rooms[i].start_time, rooms[i].end_time);
+        snprintf(room_info, sizeof(room_info), "ID: %d, Name: %s, Status: %d, Start: %s, Duration: %d\n",
+                rooms[i].id, rooms[i].name, rooms[i].status, rooms[i].start_time, rooms[i].duration);
         strncat(room_list, room_info, room_list_size - strlen(room_list) - 1);
     }
+}
+
+int has_room_started(int room_id)
+{
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            struct tm tm = {0};
+            time_t start_epoch, current_epoch;
+
+            if (strptime(rooms[i].start_time, "%Y-%m-%dT%H:%M", &tm) == NULL)
+            {
+                fprintf(stderr, "Error parsing start_time: %s\n", rooms[i].start_time);
+                return 0;
+            }
+
+            start_epoch = mktime(&tm);
+            time(&current_epoch);
+
+            printf("LOG_HAS_ROOM_STARTED: Start time: %ld, Current time: %ld\n", start_epoch, current_epoch);
+
+            return difftime(current_epoch, start_epoch) >= 0;
+        }
+    }
+    return 0;
 }
 
 /* Join a room */

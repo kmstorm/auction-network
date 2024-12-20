@@ -1,0 +1,69 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "duong",
+      "password": "pass",
+      "status": 0,
+      "role": 1
+    },
+    {
+      "id": 2,
+      "username": "bao",
+      "password": "bao123",
+      "status": 0,
+      "role": 0
+    },
+    {
+      "id": 3,
+      "username": "user3",
+      "password": "pass",
+      "status": 0,
+      "role": 0
+    }
+  ],
+  "rooms": [
+    {
+      "id": 1,
+      "name": "name",
+      "description": "des",
+      "status": 0,
+      "start_time": "5/1/2024",
+      "end_time": "6/1/2024"
+    },
+    {
+      "id": 2,
+      "name": "room_2",
+      "description": "des",
+      "status": 0,
+      "start_time": "1/1/2024",
+      "end_time": "5/1/2024"
+    }
+  ],
+  "items": [
+    {
+      "id": 1,
+      "room_id": 1,
+      "name": "item_1",
+      "description": "des",
+      "starting_price": 500000.0,
+      "status": 0
+    },
+    {
+      "id": 2,
+      "room_id": 1,
+      "name": "item_2",
+      "description": "des",
+      "starting_price": 750.0,
+      "status": 0
+    },
+    {
+      "id": 3,
+      "room_id": 1,
+      "name": "item_3",
+      "description": "des",
+      "starting_price": 450.0,
+      "status": 0
+    }
+  ]
+}

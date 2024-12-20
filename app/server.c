@@ -9,6 +9,7 @@
 #include "../model/user.h"
 #include "../model/auction_room.h"
 #include "../model/item.h"
+#include "../model/countdown_timer.h"
 
 #define PORT 8080
 #define MAX_CLIENTS 30
@@ -150,9 +151,10 @@ int main()
                     case 3: // CREATE_ROOM_REQUEST
                     {
                         // Call auction room create function
-                        char room_name[50], description[200], start_time[20], end_time[20];
-                        sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%19s", room_name, description, start_time, end_time);
-                        if (create_room(1, room_name, description, start_time, end_time)) // 1 indicates admin
+                        char room_name[50], description[200], start_time[20];
+                        int duration;
+                        sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%d", room_name, description, start_time, &duration);
+                        if (create_room(1, room_name, description, start_time, duration)) // 1 indicates admin
                         {
                             build_message(&message, 3, "Room created successfully");
                         }
@@ -248,12 +250,28 @@ int main()
                         if (join_room(user_id, room_id))
                         {
                             build_message(&message, 9, "Joined room successfully");
+                            send(sock, &message, sizeof(Message), 0);
+
+                            // Start the countdown timer after sending the response
+                            AuctionRoom *room = get_room_by_id(room_id);
+                            if (room != NULL)
+                            {
+                                if (has_room_started(room_id))
+                                {
+                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                }
+                                else
+                                {
+                                    countdown_to_start_time(sock, room->start_time);
+                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                }
+                            }
                         }
                         else
                         {
                             build_message(&message, 9, "Failed to join room");
+                            send(sock, &message, sizeof(Message), 0);
                         }
-                        send(sock, &message, sizeof(Message), 0);
                         break;
                     }
                     case 10: // LEAVE_ROOM_REQUEST

@@ -31,7 +31,7 @@ enum MessageType {
 void send_register_request(int sock, const char *username, const char *password);
 void send_login_request(int sock, const char *username, const char *password);
 void send_logout_request(int sock, const char *username);
-void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, const char *end_time);
+void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration);
 void send_delete_room_request(int sock, int room_id);
 void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price);
 void send_delete_item_request(int sock, int room_id, int item_id);
@@ -41,6 +41,7 @@ int is_admin_response(int sock);
 void send_join_room_request(int sock, int user_id, int room_id);
 void send_leave_room_request(int sock, int user_id, int room_id);
 void send_list_rooms_request(int sock);
+void handle_timer_response(int sock);
 
 int main()
 {
@@ -199,8 +200,7 @@ int main()
                 }
                 break;
 
-            case 4:
-                // Join room
+            case 4: // Join room
                 printf("Enter room ID to join: ");
                 scanf("%d", &room_id);
                 send_join_room_request(sock, user_id, room_id);
@@ -210,6 +210,7 @@ int main()
                     if (strcmp(response.payload, "Joined room successfully") == 0)
                     {
                         inside_room = 1; // Mark user as inside the room
+                        handle_timer_response(sock);
                     }
                 }
                 break;
@@ -217,16 +218,17 @@ int main()
             case 5: // Create room
                 if (is_admin)
                 {
-                    char room_name[50], description[200], start_time[20], end_time[20];
+                    char room_name[50], description[200], start_time[20];
+                    int duration;
                     printf("Enter room name: ");
                     scanf("%s", room_name);
                     printf("Enter description: ");
                     scanf("%s", description);
                     printf("Enter start time: ");
                     scanf("%s", start_time);
-                    printf("Enter end time: ");
-                    scanf("%s", end_time);
-                    send_create_room_request(sock, room_name, description, start_time, end_time);
+                    printf("Enter duration (in minutes): ");
+                    scanf("%d", &duration);
+                    send_create_room_request(sock, room_name, description, start_time, duration);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
@@ -378,11 +380,11 @@ void send_leave_room_request(int sock, int user_id, int room_id)
 }
 
 // Function to send create room request (only for admins)
-void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, const char *end_time)
+void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration)
 {
     Message message;
     message.message_type = CREATE_ROOM_REQUEST;
-    snprintf(message.payload, sizeof(message.payload), "%s|%s|%s|%s", room_name, description, start_time, end_time);
+    snprintf(message.payload, sizeof(message.payload), "%s|%s|%s|%d", room_name, description, start_time, duration);
     send(sock, &message, sizeof(message), 0);
 }
 
@@ -437,4 +439,20 @@ int is_admin_response(int sock)
         return strcmp(response.payload, "Admin") == 0;
     }
     return 0;
+}
+
+void handle_timer_response(int sock)
+{
+    Message response;
+    while (1)
+    {
+        if (recv(sock, &response, sizeof(Message), 0) > 0)
+        {
+            printf("%s\n", response.payload);
+            if (strcmp(response.payload, "Auction room has ended!") == 0)
+            {
+                break;
+            }
+        }
+    }
 }

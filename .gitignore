@@ -46,6 +46,11 @@
 *.mod*
 *.cmd
 .tmp_versions/
+
+# Ignore generated files in the release folder
+/release/server
+/release/client
+
 modules.order
 Module.symvers
 Mkfile.old
