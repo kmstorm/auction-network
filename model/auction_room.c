@@ -1,4 +1,5 @@
 #include "auction_room.h"
+#include "countdown_timer.h"
 #include "item.h"
 #include <stdio.h>
 #include <string.h>
@@ -18,8 +19,8 @@ void load_rooms_from_file()
     return;
   }
 
-  while (fscanf(file, "%d %49s %199s %d %19s %19s\n", &rooms[room_count].id, rooms[room_count].name, rooms[room_count].description,
-                &rooms[room_count].status, rooms[room_count].start_time, rooms[room_count].end_time) != EOF)
+  while (fscanf(file, "%d %49s %199s %d %19s %d\n", &rooms[room_count].id, rooms[room_count].name, rooms[room_count].description,
+                &rooms[room_count].status, rooms[room_count].start_time, &rooms[room_count].duration) != EOF)
   {
     room_count++;
   }
@@ -37,15 +38,48 @@ void save_room_to_file(const AuctionRoom *room)
     return;
   }
 
-  fprintf(file, "%d %s %s %d %s %s\n", room->id, room->name, room->description, room->status, room->start_time, room->end_time);
+  fprintf(file, "%d %s %s %d %s %d\n", room->id, room->name, room->description, room->status, room->start_time, room->duration);
   fclose(file);
 }
 
-/* Create a new room - only admin can do this */
-int create_room(int admin_id, const char *name, const char *description, const char *start_time, const char *end_time)
+/* Save all rooms to file */
+void save_all_rooms_to_file()
 {
+  FILE *file = fopen(ROOM_FILE, "w");
+  if (!file)
+  {
+    perror("Failed to open room file");
+    return;
+  }
+
+  for (int i = 0; i < room_count; i++)
+  {
+    fprintf(file, "%d %s %s %d %s %d\n", rooms[i].id, rooms[i].name, rooms[i].description, rooms[i].status, rooms[i].start_time, rooms[i].duration);
+  }
+
+  fclose(file);
+}
+
+AuctionRoom* get_room_by_id(int room_id)
+{
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            return &rooms[i];
+        }
+    }
+    return NULL;
+}
+
+/* Create a new room - only admin can do this */
+int create_room(int admin_id, const char *name, const char *description, const char *start_time, int duration)
+{
+  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, description=%s, start_time=%s, duration=%d\n", admin_id, name, description, start_time, duration);
+
   if (admin_id != 1) // Assuming 1 is admin id
   {
+    printf("Log_CREATE_ROOM: Only admin can create rooms\n");
     return 0; // Only admin can create rooms
   }
   load_rooms_from_file();
@@ -56,14 +90,16 @@ int create_room(int admin_id, const char *name, const char *description, const c
     strcpy(new_room.name, name);
     strcpy(new_room.description, description);
     strcpy(new_room.start_time, start_time);
-    strcpy(new_room.end_time, end_time);
+    new_room.duration = duration;
     new_room.status = 0; // Room is not started yet
 
     save_room_to_file(&new_room);
     rooms[room_count++] = new_room;
+    printf("Log_CREATE_ROOM: Room created successfully with id=%d\n", new_room.id);
     return 1;
   }
 
+  printf("Log_CREATE_ROOM: Room creation failed, max rooms reached\n");
   return 0;
 }
 
@@ -85,6 +121,7 @@ int delete_room(int admin_id, int room_id)
         rooms[j] = rooms[j + 1];
       }
       room_count--;
+      save_all_rooms_to_file(); // Save updated rooms to file
       return 1;
     }
   }
@@ -93,78 +130,111 @@ int delete_room(int admin_id, int room_id)
 }
 
 /* List all rooms */
-void list_rooms()
+void list_rooms(char *room_list, size_t room_list_size)
 {
-  load_rooms_from_file();
-  for (int i = 0; i < room_count; i++)
-  {
-    printf("ID: %d, Name: %s, Status: %d, Start: %s, End: %s\n", rooms[i].id, rooms[i].name, rooms[i].status,
-           rooms[i].start_time, rooms[i].end_time);
-  }
+    room_list[0] = '\0'; // Initialize the room list string
+    for (int i = 0; i < room_count; i++)
+    {
+        char room_info[256];
+        snprintf(room_info, sizeof(room_info), "ID: %d, Name: %s, Status: %d, Start: %s, Duration: %d\n",
+                rooms[i].id, rooms[i].name, rooms[i].status, rooms[i].start_time, rooms[i].duration);
+        strncat(room_list, room_info, room_list_size - strlen(room_list) - 1);
+    }
+}
+
+int has_room_started(int room_id)
+{
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            struct tm tm = {0};
+            time_t start_epoch, current_epoch;
+
+            if (strptime(rooms[i].start_time, "%Y-%m-%dT%H:%M", &tm) == NULL)
+            {
+                fprintf(stderr, "Error parsing start_time: %s\n", rooms[i].start_time);
+                return 0;
+            }
+
+            start_epoch = mktime(&tm);
+            time(&current_epoch);
+
+            printf("LOG_HAS_ROOM_STARTED: Start time: %ld, Current time: %ld\n", start_epoch, current_epoch);
+
+            return difftime(current_epoch, start_epoch) >= 0;
+        }
+    }
+    return 0;
 }
 
 /* Join a room */
 int join_room(int user_id, int room_id)
 {
-  if (user_id == 0) // Assuming 0 is a guest or invalid user
-  {
-    return 0; // User must be logged in to join a room
-  }
-
-  // Check if user is already in another room
-  for (int i = 0; i < room_count; i++)
-  {
-    for (int j = 0; j < MAX_ROOMS; j++)
+    printf("Log_JOIN_ROOM: join_room called with user_id=%d, room_id=%d\n", user_id, room_id);
+    if (user_id == 0) // Assuming 0 is a guest or invalid user
     {
-      if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
-      {
-        return 0; // User is already in another room
-      }
+        return 0; // User must be logged in to join a room
     }
-  }
 
-  for (int i = 0; i < room_count; i++)
-  {
-    if (rooms[i].id == room_id)
+    // Check if user is already in another room
+    for (int i = 0; i < room_count; i++)
     {
-      for (int j = 0; j < MAX_ROOMS; j++)
-      {
-        if (strcmp(rooms[i].participants[j], "") == 0)
+        for (int j = 0; j < MAX_ROOMS; j++)
         {
-          snprintf(rooms[i].participants[j], 50, "%d", user_id);
-          return 1;
+            if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+            {
+                return 0; // User is already in another room
+            }
         }
-      }
     }
-  }
 
-  return 0;
+    for (int i = 0; i < room_count; i++)
+    {
+        if (rooms[i].id == room_id)
+        {
+            for (int j = 0; j < MAX_ROOMS; j++)
+            {
+                if (strcmp(rooms[i].participants[j], "") == 0)
+                {
+                    snprintf(rooms[i].participants[j], 50, "%d", user_id);
+                    printf("Log_JOIN_ROOM: User %d joined room %d\n", user_id, room_id);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    printf("Log_JOIN_ROOM: Room %d not found or full\n", room_id);
+    return 0;
 }
 
 /* Leave a room */
 int leave_room(int user_id, int room_id)
 {
-  for (int i = 0; i < room_count; i++)
-  {
-    if (rooms[i].id == room_id)
+    printf("Log_LEAVE_ROOM: leave_room called with user_id=%d, room_id=%d\n", user_id, room_id);
+    for (int i = 0; i < room_count; i++)
     {
-      for (int j = 0; j < MAX_ROOMS; j++)
-      {
-        if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+        if (rooms[i].id == room_id)
         {
-          strcpy(rooms[i].participants[j], "");
-          return 1;
+            for (int j = 0; j < MAX_ROOMS; j++)
+            {
+                if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
+                {
+                    strcpy(rooms[i].participants[j], "");
+                    printf("Log_LEAVE_ROOM: User %d left room %d\n", user_id, room_id);
+                    return 1;
+                }
+            }
         }
-      }
     }
-  }
-
-  return 0;
+    printf("Log_LEAVE_ROOM: User %d not found in room %d\n", user_id, room_id);
+    return 0;
 }
 
 void list_room_items(int room_id)
 {
-  list_items(room_id); 
+  list_items(room_id);
 }
 
 /* Create an item in the room - only admin can do this */
