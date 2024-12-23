@@ -5,6 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <fcntl.h> 
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -25,7 +27,9 @@ enum MessageType {
     IS_ADMIN_REQUEST = 8,
     JOIN_ROOM_REQUEST = 9,
     LEAVE_ROOM_REQUEST = 10,
-    LIST_ROOMS_REQUEST = 11
+    LIST_ROOMS_REQUEST = 11,
+    BID_REQUEST = 12,
+    BID_RESPONSE =13
 };
 
 void send_register_request(int sock, const char *username, const char *password);
@@ -41,7 +45,9 @@ int is_admin_response(int sock);
 void send_join_room_request(int sock, int user_id, int room_id);
 void send_leave_room_request(int sock, int user_id, int room_id);
 void send_list_rooms_request(int sock);
-void handle_timer_response(int sock);
+void send_bid_request(int sock, int user_id, int room_id, float bid_amount);
+void* handle_timer_response(void* arg);
+void* handle_user_input(void* arg);
 
 int main()
 {
@@ -204,16 +210,37 @@ int main()
                 printf("Enter room ID to join: ");
                 scanf("%d", &room_id);
                 send_join_room_request(sock, user_id, room_id);
+
                 if (recv(sock, &response, sizeof(Message), 0) > 0)
                 {
                     printf("Server response: %s\n", response.payload);
                     if (strcmp(response.payload, "Joined room successfully") == 0)
                     {
-                        inside_room = 1; // Mark user as inside the room
-                        handle_timer_response(sock);
+                        inside_room = 1;
+
+                        pthread_t timer_thread, input_thread;
+
+                        // Thread 1: Nhận thông tin từ server
+                        if (pthread_create(&timer_thread, NULL, handle_timer_response, &sock) != 0)
+                        {
+                            perror("Failed to create timer thread");
+                            break;
+                        }
+
+                        // Thread 2: Xử lý input người dùng
+                        if (pthread_create(&input_thread, NULL, handle_user_input, &sock) != 0)
+                        {
+                            perror("Failed to create input thread");
+                            break;
+                        }
+
+                        // Chờ cả hai thread hoàn thành
+                        pthread_join(timer_thread, NULL);
+                        pthread_join(input_thread, NULL);
                     }
                 }
                 break;
+
 
             case 5: // Create room
                 if (is_admin)
@@ -441,18 +468,65 @@ int is_admin_response(int sock)
     return 0;
 }
 
-void handle_timer_response(int sock)
+void send_bid_request(int sock, int user_id, int room_id, float bid_amount)
 {
+    Message message;
+    message.message_type = BID_REQUEST;
+    snprintf(message.payload, sizeof(message.payload), "%d|%d|%.2f", user_id, room_id, bid_amount);
+    send(sock, &message, sizeof(message), 0);
+}
+
+void* handle_timer_response(void* arg)
+{
+    int sock = *(int*)arg;
     Message response;
+
+    // Đặt socket ở chế độ non-blocking
+    fcntl(sock, F_SETFL, O_NONBLOCK);
+
     while (1)
     {
+        // Nhận dữ liệu từ server nếu có
         if (recv(sock, &response, sizeof(Message), 0) > 0)
         {
             printf("%s\n", response.payload);
-            if (strcmp(response.payload, "Auction room has ended!") == 0)
+
+            // Nếu nhận thông báo kết thúc room
+            if (strcmp(response.payload, "Auction room has ended!\n") == 0)
             {
+                printf("Room has ended. Returning to menu.\n");
                 break;
             }
         }
+        usleep(100000); // Nghỉ 100ms để tránh chiếm giữ CPU
     }
+    return NULL;
 }
+
+
+void* handle_user_input(void* arg)
+{
+    int sock = *(int*)arg;
+    int room_id, user_id;
+    char input[50];
+
+
+    while (1)
+    {
+        printf("Enter your bid or type 'exit' to leave: ");
+        scanf("%s", input);
+
+        if (strcmp(input, "exit") == 0)
+        {
+            send_leave_room_request(sock, user_id, room_id);
+            break;
+        }
+        else
+        {
+            float bid_amount = atof(input);
+            send_bid_request(sock, user_id, room_id, bid_amount);
+        }
+    }
+    return NULL;
+}
+

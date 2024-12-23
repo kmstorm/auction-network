@@ -258,12 +258,12 @@ int main()
                             {
                                 if (has_room_started(room_id))
                                 {
-                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                    countdown_room_duration(sock, room->id, room->duration);
                                 }
                                 else
                                 {
                                     countdown_to_start_time(sock, room->start_time);
-                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                    countdown_room_duration(sock, room->id, room->duration);
                                 }
                             }
                         }
@@ -296,6 +296,23 @@ int main()
                         char room_list[BUFFER_SIZE] = "";
                         list_rooms(room_list, sizeof(room_list));
                         build_message(&message, 11, room_list);
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 12: // BID_REQUEST
+                    {
+                        int user_id, room_id;
+                        float bid_amount;
+                        sscanf(message.payload, "%d|%d|%f", &user_id, &room_id, &bid_amount);
+
+                        if (process_bid(user_id, room_id, bid_amount))
+                        {
+                            build_message(&message, 13, "Bid accepted");
+                        }
+                        else
+                        {
+                            build_message(&message, 13, "Bid rejected");
+                        }
                         send(sock, &message, sizeof(Message), 0);
                         break;
                     }
