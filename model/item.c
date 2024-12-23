@@ -18,12 +18,12 @@ void load_items_from_file()
   }
 
   printf("Log_LOAD_ITEMS: Reading items from file\n");
-  while (fscanf(file, "%d %d %49s %199s %f %f %d %d\n", 
+  while (fscanf(file, "%d %d %49s %199s %f %f %f %d\n", 
               &items[item_count].id, &items[item_count].room_id, 
               items[item_count].name, items[item_count].description, 
               &items[item_count].starting_price, &items[item_count].current_price, 
-              &items[item_count].highest_bidder, &items[item_count].status) != EOF)
-  {
+              &items[item_count].buy_now_price, &items[item_count].status) != EOF)
+{
       item_count++;
       if (item_count >= MAX_ITEMS)
       {
@@ -46,10 +46,10 @@ void save_item_to_file(const Item *item)
     return;
   }
 
-  fprintf(file, "%d %d %s %s %.2f %.2f %d %d\n", 
-            item->id, item->room_id, item->name, item->description, 
-            item->starting_price, item->current_price, 
-            item->highest_bidder, item->status);
+  fprintf(file, "%d %d %s %s %.2f %.2f %.2f %d\n", 
+          item->id, item->room_id, item->name, item->description, 
+          item->starting_price, item->current_price, 
+          item->buy_now_price, item->status);
   fclose(file);
 }
 
@@ -65,13 +65,14 @@ void save_all_items_to_file()
 
   for (int i = 0; i < item_count; i++)
   {
-    fprintf(file, "%d %d %s %s %.2f %.2f %d %d\n", 
-        items[i].id, items[i].room_id, items[i].name, items[i].description, 
-        items[i].starting_price, items[i].current_price, 
-        items[i].highest_bidder, items[i].status);
+    fprintf(file, "%d %d %s %s %.2f %.2f %.2f %d\n", 
+                items[i].id, items[i].room_id, items[i].name, items[i].description, 
+                items[i].starting_price, items[i].current_price, 
+                items[i].buy_now_price, items[i].status);
   }
 
   fclose(file);
+  printf("LOG_SAVE_ITEMS: All items have been saved to file.\n");
 }
 
 /* Create a new item - only admin can do this */
@@ -160,14 +161,14 @@ void list_items(int room_id)
     }
 }
 
-Item* get_item_by_id(int room_id, int item_id)
+Item* find_item(int room_id)
 {
     for (int i = 0; i < item_count; i++)
     {
-        if (items[i].room_id == room_id && items[i].id == item_id)
+        if (items[i].room_id == room_id && items[i].status == 0)
         {
-            return &items[i];
+            return &items[i]; // Trả về con trỏ đến vật phẩm đầu tiên có trạng thái "Available"
         }
     }
-    return NULL;
+    return NULL; // Không tìm thấy vật phẩm nào
 }

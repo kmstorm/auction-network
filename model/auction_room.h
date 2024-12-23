@@ -31,5 +31,6 @@ int leave_room(int user_id, int room_id);
 void list_room_items(int room_id);
 int create_item_in_room(int admin_id, int room_id, const char *name, const char *description, float starting_price);
 int delete_item_from_room(int admin_id, int room_id, int item_id);
+int process_bid(int user_id, int room_id, float bid_amount);
 
 #endif

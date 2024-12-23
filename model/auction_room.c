@@ -248,3 +248,39 @@ int delete_item_from_room(int admin_id, int room_id, int item_id)
 {
   return delete_item(admin_id, room_id, item_id);
 }
+
+int process_bid(int user_id, int room_id, float bid_amount)
+{
+    // Gọi hàm find_item để tìm vật phẩm đang đấu giá trong room
+    Item *item = find_item(room_id);
+    if (!item)
+    {
+        printf("LOG_PROCESS_BID: No available items in Room ID %d\n", room_id);
+        return 0; // Không có vật phẩm nào để đấu giá
+    }
+
+    if (bid_amount >= item->buy_now_price)
+    {
+        item->current_price = item->buy_now_price;
+        item->highest_bidder = user_id;
+        item->status = 1; // Vật phẩm được bán
+        save_all_items_to_file();
+        printf("LOG_PROCESS_BID: Item ID %d in Room ID %d sold immediately to User %d for %.2f\n", 
+               item->id, room_id, user_id, item->buy_now_price);
+        return 1; // Vật phẩm được bán
+    }
+
+    if (bid_amount > item->current_price)
+    {
+        item->current_price = bid_amount;
+        item->highest_bidder = user_id;
+        save_all_items_to_file();
+        printf("LOG_PROCESS_BID: Bid accepted - User %d is now the highest bidder for Item ID %d in Room ID %d with amount %.2f\n",
+               user_id, item->id, room_id, bid_amount);
+        return 1; // Bid được chấp nhận
+    }
+
+    printf("LOG_PROCESS_BID: Bid rejected - Bid amount %.2f is less than current price %.2f for Item ID %d in Room ID %d\n",
+           bid_amount, item->current_price, item->id, room_id);
+    return 0; // Bid bị từ chối
+}
