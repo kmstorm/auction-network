@@ -18,16 +18,18 @@ void load_items_from_file()
   }
 
   printf("Log_LOAD_ITEMS: Reading items from file\n");
-  while (fscanf(file, "%d %d %49s %199s %f %d\n", &items[item_count].id, &items[item_count].room_id, items[item_count].name, items[item_count].description,
-                 &items[item_count].starting_price, &items[item_count].status) != EOF)
+  while (fscanf(file, "%d %d %49s %199s %f %f %d %d\n", 
+              &items[item_count].id, &items[item_count].room_id, 
+              items[item_count].name, items[item_count].description, 
+              &items[item_count].starting_price, &items[item_count].current_price, 
+              &items[item_count].highest_bidder, &items[item_count].status) != EOF)
   {
-    printf("Log_LOAD_ITEMS: Loaded item with id=%d, name=%s\n", items[item_count].id, items[item_count].name);
-    item_count++;
-    if (item_count >= MAX_ITEMS)
-    {
-      printf("Log_LOAD_ITEMS: Maximum item count reached\n");
-      break;
-    }
+      item_count++;
+      if (item_count >= MAX_ITEMS)
+      {
+          printf("Log_LOAD_ITEMS: Maximum item count reached\n");
+          break;
+      }
   }
 
   fclose(file);
@@ -44,7 +46,10 @@ void save_item_to_file(const Item *item)
     return;
   }
 
-  fprintf(file, "%d %d %s %s %f %d\n", item->id, item->room_id, item->name, item->description, item->starting_price, item->status);
+  fprintf(file, "%d %d %s %s %.2f %.2f %d %d\n", 
+            item->id, item->room_id, item->name, item->description, 
+            item->starting_price, item->current_price, 
+            item->highest_bidder, item->status);
   fclose(file);
 }
 
@@ -60,7 +65,10 @@ void save_all_items_to_file()
 
   for (int i = 0; i < item_count; i++)
   {
-    fprintf(file, "%d %d %s %s %f %d\n", items[i].id, items[i].room_id, items[i].name, items[i].description, items[i].starting_price, items[i].status);
+    fprintf(file, "%d %d %s %s %.2f %.2f %d %d\n", 
+        items[i].id, items[i].room_id, items[i].name, items[i].description, 
+        items[i].starting_price, items[i].current_price, 
+        items[i].highest_bidder, items[i].status);
   }
 
   fclose(file);
@@ -69,33 +77,38 @@ void save_all_items_to_file()
 /* Create a new item - only admin can do this */
 int create_item(int admin_id, int room_id, const char *name, const char *description, float starting_price)
 {
-  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%f\n", admin_id, room_id, name, description, starting_price);
+  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%.2f\n", 
+          admin_id, room_id, name, description, starting_price);
 
   if (admin_id != 1) // Only admin (id 1) can create items
   {
-    printf("Log_CREATE_ITEM: Only admin can create items\n");
-    return 0; // Permission denied
+      printf("Log_CREATE_ITEM: Only admin can create items\n");
+      return 0; // Permission denied
   }
 
   if (item_count < MAX_ITEMS)
   {
-    Item new_item;
-    new_item.id = item_count + 1;
-    new_item.room_id = room_id;
-    strcpy(new_item.name, name);
-    strcpy(new_item.description, description);
-    new_item.starting_price = starting_price;
-    new_item.status = 0; // Available
+      Item new_item;
+      new_item.id = item_count + 1;
+      new_item.room_id = room_id;
+      strcpy(new_item.name, name);
+      strcpy(new_item.description, description);
+      new_item.starting_price = starting_price;
+      new_item.current_price = starting_price; // Current price starts with starting price
+      new_item.highest_bidder = -1;           // No bidder yet
+      new_item.status = 0;                    // Available
 
-    save_item_to_file(&new_item);
-    items[item_count++] = new_item;
-    printf("Log_CREATE_ITEM: Item created successfully with id=%d\n", new_item.id);
-    return 1;
+      save_item_to_file(&new_item);           // Save the new item to file
+      items[item_count++] = new_item;         // Add item to the in-memory list
+
+      printf("Log_CREATE_ITEM: Item created successfully with id=%d\n", new_item.id);
+      return 1; // Success
   }
 
   printf("Log_CREATE_ITEM: Item creation failed, max items reached\n");
   return 0;
 }
+
 
 /* Delete item - only admin can do this */
 int delete_item(int admin_id, int room_id, int item_id)
@@ -145,4 +158,16 @@ void list_items(int room_id)
     {
         printf("No items found for room ID %d\n", room_id);  // If no items are found in the room
     }
+}
+
+Item* get_item_by_id(int room_id, int item_id)
+{
+    for (int i = 0; i < item_count; i++)
+    {
+        if (items[i].room_id == room_id && items[i].id == item_id)
+        {
+            return &items[i];
+        }
+    }
+    return NULL;
 }

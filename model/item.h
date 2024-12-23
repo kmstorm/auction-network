@@ -11,6 +11,8 @@ typedef struct
   char name[50];
   char description[200];
   float starting_price;
+  float current_price;   // Current highest bid price
+  int highest_bidder;    // ID of the user with the highest bid
   int status; // 0: available, 1: sold
 } Item;
 
