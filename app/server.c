@@ -310,13 +310,49 @@ int main()
 
                         if (process_bid(user_id, room_id, bid_amount))
                         {
-                            build_message(&message, 13, "Bid accepted");
+                            build_message(&message, 12, "Bid accepted");
                         }
                         else
                         {
-                            build_message(&message, 13, "Bid rejected");
+                            build_message(&message, 12, "Bid rejected");
                         }
                         send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 13: // Search items
+                    {
+                        char keyword[50] = "", start_time[20] = "", end_time[20] = "";
+                        char *ptr = message.payload;
+
+                        printf("Log_SERVER: SEARCH_ITEMS_REQUEST received\n");
+
+                        // Parse the keyword (first field)
+                        if (*ptr != '|') {  // Check if the first field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(keyword, ptr, 1);
+                                ptr++;
+                            }
+                        }
+                        ptr++;  // Skip over the '|' character
+
+                        // Parse the start_time (second field)
+                        if (*ptr != '|') {  // Check if the second field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(start_time, ptr, 1);
+                                ptr++;
+                            }
+                        }
+                        ptr++;  // Skip over the '|' character
+
+                        // Parse the end_time (third field)
+                        if (*ptr != '|') {  // Check if the third field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(end_time, ptr, 1);
+                                ptr++;
+                            }
+                        }
+
+                        search_items(sock, keyword, start_time, end_time);
                         break;
                     }
                     default:

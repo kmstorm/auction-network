@@ -29,7 +29,7 @@ enum MessageType {
     LEAVE_ROOM_REQUEST = 10,
     LIST_ROOMS_REQUEST = 11,
     BID_REQUEST = 12,
-    BID_RESPONSE =13
+    SEARCH_ITEMS_REQUEST = 13,
 };
 
 typedef struct {
@@ -54,6 +54,7 @@ void send_list_rooms_request(int sock);
 void send_bid_request(int sock, int user_id, int room_id, float bid_amount);
 void* handle_timer_response(void* arg);
 void* handle_user_input(void* arg);
+void send_search_items_request(int sock, const char *keyword, const char *start_time, const char *end_time);
 
 int main()
 {
@@ -173,14 +174,15 @@ int main()
             printf("2. Exit\n");
             printf("3. List Room\n");
             printf("4. Join Room\n");
+            printf("5. Search Items\n");
 
             if (is_admin)
             {
-                printf("5. Create Room\n");
-                printf("6. Delete Room\n");
-                printf("7. Add item\n");
-                printf("8. Delete item\n");
-                printf("9. List items\n");
+                printf("6. Create Room\n");
+                printf("7. Delete Room\n");
+                printf("8. Add item\n");
+                printf("9. Delete item\n");
+                printf("10. List items\n");
             }
 
             printf("Enter your choice: ");
@@ -253,8 +255,36 @@ int main()
                 }
                 break;
 
+            case 5: // Search items
+            {
+                char keyword[50] = "", start_time[20] = "", end_time[20] = "";
+                int c;
 
-            case 5: // Create room
+                // Clear the input buffer
+                while ((c = getchar()) != '\n' && c != EOF) {}
+
+                printf("Enter keyword (or leave empty): ");
+                fgets(keyword, sizeof(keyword), stdin);
+                if (keyword[strlen(keyword) - 1] == '\n') keyword[strlen(keyword) - 1] = '\0';
+
+                printf("Enter start time (YYYY-MM-DDTHH:MM) (or leave empty): ");
+                fgets(start_time, sizeof(start_time), stdin);
+                if (start_time[strlen(start_time) - 1] == '\n') start_time[strlen(start_time) - 1] = '\0';
+
+                printf("Enter end time (YYYY-MM-DDTHH:MM) (or leave empty): ");
+                fgets(end_time, sizeof(end_time), stdin);
+                if (end_time[strlen(end_time) - 1] == '\n') end_time[strlen(end_time) - 1] = '\0';
+
+                send_search_items_request(sock, keyword, start_time, end_time);
+                if (recv(sock, &response, sizeof(Message), 0) > 0)
+                {
+                    printf("Server response: %s\n", response.payload);
+                }
+            }
+            break;
+
+
+            case 6: // Create room
                 if (is_admin)
                 {
                     char room_name[50], description[200], start_time[20];
@@ -279,7 +309,7 @@ int main()
                 }
                 break;
 
-            case 6: // Delete room
+            case 7: // Delete room
                 if (is_admin)
                 {
                     int room_id;
@@ -297,7 +327,7 @@ int main()
                 }
                 break;
 
-            case 7: // Add item
+            case 8: // Add item
                 if (is_admin)
                 {
                     int room_id;
@@ -323,7 +353,7 @@ int main()
                 }
                 break;
 
-            case 8: // Delete item
+            case 9: // Delete item
                 if (is_admin)
                 {
                     int room_id, item_id;
@@ -343,7 +373,7 @@ int main()
                 }
                 break;
 
-            case 9: // List items
+            case 10: // List items
                 if (is_admin)
                 {
                     int room_id;
@@ -549,4 +579,13 @@ void* handle_user_input(void* arg)
         }
     }
     return NULL;
+}
+
+void send_search_items_request(int sock, const char *keyword, const char *start_time, const char *end_time)
+{
+    Message message;
+    char payload[BUFFER_SIZE];
+    snprintf(payload, sizeof(payload), "%s|%s|%s", keyword, start_time, end_time);
+    build_message(&message, SEARCH_ITEMS_REQUEST, payload);
+    send(sock, &message, sizeof(Message), 0);
 }

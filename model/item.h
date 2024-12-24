@@ -25,5 +25,6 @@ int create_item(int admin_id, int room_id, const char *name, const char *descrip
 int delete_item(int admin_id, int room_id, int item_id);
 void list_items(int room_id);
 Item* find_item(int room_id);
+void search_items(int sock, const char *keyword, const char *start_time, const char *end_time);
 
 #endif
