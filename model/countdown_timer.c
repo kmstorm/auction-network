@@ -103,15 +103,15 @@ void countdown_room_duration(int sock, int room_id, int duration)
         Message bid_message;
         if (recv(sock, &bid_message, sizeof(Message), MSG_DONTWAIT) > 0)
         {
-            int user_id;
+            int user_id, bid_room_id;
             float bid_amount;
 
             // Parse giá đấu
-            if (sscanf(bid_message.payload, "%d|%f", &user_id, &bid_amount) == 2)
+            if (sscanf(bid_message.payload, "%d|%d|%f", &user_id, &bid_room_id, &bid_amount) == 3)
             {
                 printf("LOG_TIMER: Received bid from User ID %d with amount %.2f\n", user_id, bid_amount);
 
-                if (bid_amount > item->current_price)
+                if (bid_room_id == room_id && bid_amount > item->current_price)
                 {
                     item->current_price = bid_amount;
                     item->highest_bidder = user_id;
@@ -127,15 +127,15 @@ void countdown_room_duration(int sock, int room_id, int duration)
 
                     // Gửi phản hồi đến client
                     char buffer[BUFFER_SIZE];
-                    snprintf(buffer, sizeof(buffer), 
-                             "Bid accepted: User ID %d is now the highest bidder with %.2f\n", 
+                    snprintf(buffer, sizeof(buffer),
+                             "Bid accepted: User ID %d is now the highest bidder with %.2f\n",
                              user_id, bid_amount);
                     build_message(&bid_message, 101, buffer); // 101: Custom message type for bid response
                     send(sock, &bid_message, sizeof(Message), 0);
                 }
                 else
                 {
-                    printf("LOG_TIMER: Bid rejected: %.2f is less than current price %.2f\n", 
+                    printf("LOG_TIMER: Bid rejected: %.2f is less than current price %.2f\n",
                            bid_amount, item->current_price);
                 }
             }
@@ -162,4 +162,3 @@ void countdown_room_duration(int sock, int room_id, int duration)
         }
     }
 }
-

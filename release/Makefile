@@ -4,7 +4,7 @@ MODEL_DIR = ../model
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -D_XOPEN_SOURCE -I$(MODEL_DIR)
+CFLAGS = -std=c99 -Wall -Wextra -D_XOPEN_SOURCE=500 -I$(MODEL_DIR)
 
 all: server client
 

@@ -305,6 +305,9 @@ int main()
                         float bid_amount;
                         sscanf(message.payload, "%d|%d|%f", &user_id, &room_id, &bid_amount);
 
+                        printf("Log_SERVER: BID_REQUEST received\n");
+                        printf("Log_SERVER: user_id=%d, room_id=%d, bid_amount=%.2f\n", user_id, room_id, bid_amount);
+
                         if (process_bid(user_id, room_id, bid_amount))
                         {
                             build_message(&message, 13, "Bid accepted");

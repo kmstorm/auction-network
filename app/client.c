@@ -1,12 +1,12 @@
 // client.c
 
-#include<stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include <fcntl.h> 
+#include <fcntl.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -31,6 +31,12 @@ enum MessageType {
     BID_REQUEST = 12,
     BID_RESPONSE =13
 };
+
+typedef struct {
+    int sock;
+    int room_id;
+    int user_id;
+} ThreadArgs;
 
 void send_register_request(int sock, const char *username, const char *password);
 void send_login_request(int sock, const char *username, const char *password);
@@ -220,21 +226,27 @@ int main()
 
                         pthread_t timer_thread, input_thread;
 
-                        // Thread 1: Nhận thông tin từ server
+                        // Create a struct to hold the arguments
+                        ThreadArgs args;
+                        args.sock = sock;
+                        args.room_id = room_id;
+                        args.user_id = user_id;
+
+                        // Thread 1: Receive timer updates from server
                         if (pthread_create(&timer_thread, NULL, handle_timer_response, &sock) != 0)
                         {
                             perror("Failed to create timer thread");
                             break;
                         }
 
-                        // Thread 2: Xử lý input người dùng
-                        if (pthread_create(&input_thread, NULL, handle_user_input, &sock) != 0)
+                        // Thread 2: Handle user input
+                        if (pthread_create(&input_thread, NULL, handle_user_input, &args) != 0)
                         {
                             perror("Failed to create input thread");
                             break;
                         }
 
-                        // Chờ cả hai thread hoàn thành
+                        // Wait for both threads to complete
                         pthread_join(timer_thread, NULL);
                         pthread_join(input_thread, NULL);
                     }
@@ -481,24 +493,24 @@ void* handle_timer_response(void* arg)
     int sock = *(int*)arg;
     Message response;
 
-    // Đặt socket ở chế độ non-blocking
+    // Set the socket to non-blocking mode
     fcntl(sock, F_SETFL, O_NONBLOCK);
 
     while (1)
     {
-        // Nhận dữ liệu từ server nếu có
+        // Receive data from the server if available
         if (recv(sock, &response, sizeof(Message), 0) > 0)
         {
             printf("%s\n", response.payload);
 
-            // Nếu nhận thông báo kết thúc room
-            if (strcmp(response.payload, "Auction room has ended!\n") == 0)
+            // If the auction room has ended, break the loop
+            if (strcmp(response.payload, "Auction ended for this item\n") == 0)
             {
-                printf("Room has ended. Returning to menu.\n");
+                printf("Auction has ended. Returning to menu.\n");
                 break;
             }
         }
-        usleep(100000); // Nghỉ 100ms để tránh chiếm giữ CPU
+        usleep(100000); // Sleep for 100ms to avoid busy-waiting
     }
     return NULL;
 }
@@ -506,10 +518,11 @@ void* handle_timer_response(void* arg)
 
 void* handle_user_input(void* arg)
 {
-    int sock = *(int*)arg;
-    int room_id, user_id;
+    ThreadArgs* args = (ThreadArgs*)arg;
+    int sock = args->sock;
+    int room_id = args->room_id;
+    int user_id = args->user_id;
     char input[50];
-
 
     while (1)
     {
@@ -524,9 +537,16 @@ void* handle_user_input(void* arg)
         else
         {
             float bid_amount = atof(input);
-            send_bid_request(sock, user_id, room_id, bid_amount);
+            if (bid_amount > 0) // Ensure bid amount is valid
+            {
+                printf("Sending bid request: User ID %d, Room ID %d, Bid Amount %.2f\n", user_id, room_id, bid_amount);
+                send_bid_request(sock, user_id, room_id, bid_amount);
+            }
+            else
+            {
+                printf("Invalid bid amount. Please enter a valid number.\n");
+            }
         }
     }
     return NULL;
 }
-
