@@ -2,6 +2,7 @@
 #define __COUNTDOWN_TIMER_H__
 
 #include <time.h>
+#include <stdlib.h>
 
 typedef struct {
     int sock;
