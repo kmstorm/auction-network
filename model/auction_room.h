@@ -22,7 +22,7 @@ void load_rooms_from_file();
 void save_room_to_file(const AuctionRoom *room);
 void save_all_rooms_to_file();
 AuctionRoom* get_room_by_id(int room_id);
-int create_room(int admin_id, const char *name, const char *description, const char *start_time, int duration);
+int create_room(int admin_id, const char *name, const char *start_time, int duration);
 int delete_room(int admin_id, int room_id);
 void list_rooms(char *room_list, size_t room_list_size);
 int has_room_started(int room_id);

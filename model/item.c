@@ -22,21 +22,27 @@ void load_items_from_file()
     return;
   }
 
+  // Reset item count and clear items array
+  item_count = 0;
+  memset(items, 0, sizeof(items));
+
   printf("Log_LOAD_ITEMS: Reading items from file\n");
-  while (fscanf(file, "%d %d %49s %199s %f %f %f %d\n",
-              &items[item_count].id, &items[item_count].room_id,
-              items[item_count].name, items[item_count].description,
-              &items[item_count].starting_price, &items[item_count].current_price,
-              &items[item_count].buy_now_price, &items[item_count].status) != EOF)
-{
-      item_count++;
-      if (item_count >= MAX_ITEMS)
-      {
-          printf("Log_LOAD_ITEMS: Maximum item count reached\n");
-          break;
-      }
+  while (fscanf(file, "%d %d %49s %f %f %f %d\n",
+                &items[item_count].id, &items[item_count].room_id,
+                items[item_count].name,
+                &items[item_count].starting_price, &items[item_count].current_price,
+                &items[item_count].buy_now_price, &items[item_count].status) != EOF)
+  {
+
+    item_count++;
+    if (item_count >= MAX_ITEMS)
+    {
+      printf("Log_LOAD_ITEMS: Maximum item count reached\n");
+      break;
+    }
   }
 
+  printf("Log_LOAD_ITEMS: Total items loaded: %d\n", item_count);
   fclose(file);
   printf("Log_LOAD_ITEMS: Finished loading items\n");
 }
@@ -51,8 +57,8 @@ void save_item_to_file(const Item *item)
     return;
   }
 
-  fprintf(file, "%d %d %s %s %.2f %.2f %.2f %d\n",
-          item->id, item->room_id, item->name, item->description,
+  fprintf(file, "%d %d %s %.2f %.2f %.2f %d\n",
+          item->id, item->room_id, item->name,
           item->starting_price, item->current_price,
           item->buy_now_price, item->status);
   fclose(file);
@@ -70,8 +76,8 @@ void save_all_items_to_file()
 
   for (int i = 0; i < item_count; i++)
   {
-    fprintf(file, "%d %d %s %s %.2f %.2f %.2f %d\n",
-                items[i].id, items[i].room_id, items[i].name, items[i].description,
+    fprintf(file, "%d %d %s %.2f %.2f %.2f %d\n",
+                items[i].id, items[i].room_id, items[i].name,
                 items[i].starting_price, items[i].current_price,
                 items[i].buy_now_price, items[i].status);
   }
@@ -81,10 +87,10 @@ void save_all_items_to_file()
 }
 
 /* Create a new item - only admin can do this */
-int create_item(int admin_id, int room_id, const char *name, const char *description, float starting_price, float buy_now_price)
+int create_item(int admin_id, int room_id, const char *name, float starting_price, float buy_now_price)
 {
-  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%.2f, buy_now_price=%.2f\n",
-          admin_id, room_id, name, description, starting_price, buy_now_price);
+  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, starting_price=%.2f, buy_now_price=%.2f\n",
+          admin_id, room_id, name, starting_price, buy_now_price);
 
   if (admin_id != 1) // Only admin (id 1) can create items
   {
@@ -98,7 +104,6 @@ int create_item(int admin_id, int room_id, const char *name, const char *descrip
       new_item.id = item_count + 1;
       new_item.room_id = room_id;
       strcpy(new_item.name, name);
-      strcpy(new_item.description, description);
       new_item.starting_price = starting_price;
       new_item.current_price = starting_price; // Current price starts with starting price
       new_item.buy_now_price = buy_now_price;
@@ -115,7 +120,6 @@ int create_item(int admin_id, int room_id, const char *name, const char *descrip
   printf("Log_CREATE_ITEM: Item creation failed, max items reached\n");
   return 0;
 }
-
 
 /* Delete item - only admin can do this */
 int delete_item(int admin_id, int room_id, int item_id)
@@ -152,6 +156,7 @@ void list_items(int room_id)
     int item_found = 0;
     for (int i = 0; i < item_count; i++)
     {
+        printf("Log_LIST_ITEMS: Checking item ID %d, room_id=%d, status=%d\n", items[i].id, items[i].room_id, items[i].status);
         if (items[i].room_id == room_id)  // Only list items for the specified room
         {
             printf("ID: %d, Name: %s, Starting Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
@@ -196,7 +201,7 @@ void search_items(int sock, const char *keyword, const char *start_time, const c
             continue;
         }
 
-        int keyword_match = keyword && (strstr(items[i].name, keyword) || strstr(items[i].description, keyword));
+        int keyword_match = keyword && strstr(items[i].name, keyword);
         int time_match = 1;
 
         if (start_time[0] != '\0' && end_time[0] != '\0')
@@ -210,8 +215,8 @@ void search_items(int sock, const char *keyword, const char *start_time, const c
         {
             char item_info[256];
             snprintf(item_info, sizeof(item_info),
-                     "\nRoom ID: %d, Item ID: %d, Name: %s, Description: %s, Start Time: %s, Current Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
-                     items[i].room_id, items[i].id, items[i].name, items[i].description, room->start_time,
+                     "\nRoom ID: %d, Item ID: %d, Name: %s, Start Time: %s, Current Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
+                     items[i].room_id, items[i].id, items[i].name, room->start_time,
                      items[i].current_price, items[i].buy_now_price, items[i].status == 0 ? "Available" : "Sold");
             strncat(result, item_info, sizeof(result) - strlen(result) - 1);
             item_found = 1;

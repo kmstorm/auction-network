@@ -42,9 +42,9 @@ typedef struct {
 void send_register_request(int sock, const char *username, const char *password);
 void send_login_request(int sock, const char *username, const char *password);
 void send_logout_request(int sock, const char *username);
-void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration);
+void send_create_room_request(int sock, const char *room_name, const char *start_time, int duration);
 void send_delete_room_request(int sock, int room_id);
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price);
+void send_create_item_request(int sock, int room_id, const char *name, float starting_price, float buy_now_price);
 void send_delete_item_request(int sock, int room_id, int item_id);
 void send_list_items_request(int sock, int room_id);
 void send_is_admin_request(int sock, const char *username);
@@ -297,13 +297,11 @@ int main()
                     int duration;
                     printf("Enter room name: ");
                     scanf("%s", room_name);
-                    printf("Enter description: ");
-                    scanf("%s", description);
                     printf("Enter start time: ");
                     scanf("%s", start_time);
                     printf("Enter duration (in minutes): ");
                     scanf("%d", &duration);
-                    send_create_room_request(sock, room_name, description, start_time, duration);
+                    send_create_room_request(sock, room_name, start_time, duration);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
@@ -337,19 +335,17 @@ int main()
                 if (is_admin)
                 {
                     int room_id;
-                    char name[50], description[200];
+                    char name[50];
                     float starting_price, buy_now_price;
                     printf("Enter room ID: ");
                     scanf("%d", &room_id);
                     printf("Enter item name: ");
                     scanf("%s", name);
-                    printf("Enter item description: ");
-                    scanf("%s", description);
                     printf("Enter starting price: ");
                     scanf("%f", &starting_price);
                     printf("Enter buy now price: ");
                     scanf("%f", &buy_now_price);
-                    send_create_item_request(sock, room_id, name, description, starting_price, buy_now_price);
+                    send_create_item_request(sock, room_id, name, starting_price, buy_now_price);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
@@ -457,11 +453,11 @@ void send_leave_room_request(int sock, int user_id, int room_id)
 }
 
 // Function to send create room request (only for admins)
-void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration)
+void send_create_room_request(int sock, const char *room_name, const char *start_time, int duration)
 {
     Message message;
     message.message_type = CREATE_ROOM_REQUEST;
-    snprintf(message.payload, sizeof(message.payload), "%s|%s|%s|%d", room_name, description, start_time, duration);
+    snprintf(message.payload, sizeof(message.payload), "%s|%s|%d", room_name, start_time, duration);
     send(sock, &message, sizeof(message), 0);
 }
 
@@ -474,13 +470,13 @@ void send_delete_room_request(int sock, int room_id)
     send(sock, &message, sizeof(message), 0);
 }
 
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price)
+void send_create_item_request(int sock, int room_id, const char *name, float starting_price, float buy_now_price)
 {
     Message message;
     message.message_type = CREATE_ITEM_REQUEST;
     printf("%.2f\n",buy_now_price);
-    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%.2f|%.2f", 
-             room_id, name, description, starting_price, buy_now_price);
+    snprintf(message.payload, sizeof(message.payload), "%d|%s|%.2f|%.2f",
+            room_id, name, starting_price, buy_now_price);
     send(sock, &message, sizeof(Message), 0);
 }
 

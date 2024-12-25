@@ -20,7 +20,7 @@ void load_rooms_from_file()
     return;
   }
 
-  while (fscanf(file, "%d %49s %199s %d %19s %d\n", &rooms[room_count].id, rooms[room_count].name, rooms[room_count].description,
+  while (fscanf(file, "%d %49s %d %19s %d\n", &rooms[room_count].id, rooms[room_count].name,
                 &rooms[room_count].status, rooms[room_count].start_time, &rooms[room_count].duration) != EOF)
   {
     room_count++;
@@ -39,7 +39,7 @@ void save_room_to_file(const AuctionRoom *room)
     return;
   }
 
-  fprintf(file, "%d %s %s %d %s %d\n", room->id, room->name, room->description, room->status, room->start_time, room->duration);
+  fprintf(file, "%d %s %d %s %d\n", room->id, room->name, room->status, room->start_time, room->duration);
   fclose(file);
 }
 
@@ -55,7 +55,7 @@ void save_all_rooms_to_file()
 
   for (int i = 0; i < room_count; i++)
   {
-    fprintf(file, "%d %s %s %d %s %d\n", rooms[i].id, rooms[i].name, rooms[i].description, rooms[i].status, rooms[i].start_time, rooms[i].duration);
+    fprintf(file, "%d %s %d %s %d\n", rooms[i].id, rooms[i].name, rooms[i].status, rooms[i].start_time, rooms[i].duration);
   }
 
   fclose(file);
@@ -74,9 +74,9 @@ AuctionRoom* get_room_by_id(int room_id)
 }
 
 /* Create a new room - only admin can do this */
-int create_room(int admin_id, const char *name, const char *description, const char *start_time, int duration)
+int create_room(int admin_id, const char *name, const char *start_time, int duration)
 {
-  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, description=%s, start_time=%s, duration=%d\n", admin_id, name, description, start_time, duration);
+  printf("Log_CREATE_ROOM: create_room called with admin_id=%d, name=%s, start_time=%s, duration=%d\n", admin_id, name, start_time, duration);
 
   if (admin_id != 1) // Assuming 1 is admin id
   {
@@ -89,7 +89,6 @@ int create_room(int admin_id, const char *name, const char *description, const c
     AuctionRoom new_room;
     new_room.id = room_count + 1;
     strcpy(new_room.name, name);
-    strcpy(new_room.description, description);
     strcpy(new_room.start_time, start_time);
     new_room.duration = duration;
     new_room.status = 0; // Room is not started yet
@@ -256,7 +255,7 @@ int process_bid(int user_id, int room_id, float bid_amount)
         item->highest_bidder = user_id;
         item->status = 1; // Vật phẩm được bán
         save_all_items_to_file();
-        printf("LOG_PROCESS_BID: Item ID %d in Room ID %d sold immediately to User %d for %.2f\n", 
+        printf("LOG_PROCESS_BID: Item ID %d in Room ID %d sold immediately to User %d for %.2f\n",
                item->id, room_id, user_id, item->buy_now_price);
         return 1; // Vật phẩm được bán
     }

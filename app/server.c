@@ -151,10 +151,10 @@ int main()
                     case 3: // CREATE_ROOM_REQUEST
                     {
                         // Call auction room create function
-                        char room_name[50], description[200], start_time[20];
+                        char room_name[50], start_time[20];
                         int duration;
-                        sscanf(message.payload, "%49[^|]|%199[^|]|%19[^|]|%d", room_name, description, start_time, &duration);
-                        if (create_room(1, room_name, description, start_time, duration)) // 1 indicates admin
+                        sscanf(message.payload, "%49[^|]|%19[^|]|%d", room_name, start_time, &duration);
+                        if (create_room(1, room_name, start_time, duration)) // 1 indicates admin
                         {
                             build_message(&message, 3, "Room created successfully");
                         }
@@ -184,11 +184,11 @@ int main()
                     {
                         // Parse the message for room_id, item details
                         int room_id;
-                        char name[50], description[200];
+                        char name[50];
                         float starting_price, buy_now_price;
-                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f|%f", &room_id, name, description, &starting_price, &buy_now_price);
+                        sscanf(message.payload, "%d|%49[^|]|%f|%f", &room_id, name, &starting_price, &buy_now_price);
 
-                        if (create_item(1, room_id, name, description, starting_price, buy_now_price)) // Admin id 1
+                        if (create_item(1, room_id, name, starting_price, buy_now_price)) // Admin id 1
                         {
                             build_message(&message, 5, "Item created successfully");
                         }
