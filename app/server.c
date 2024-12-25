@@ -185,10 +185,10 @@ int main()
                         // Parse the message for room_id, item details
                         int room_id;
                         char name[50], description[200];
-                        float starting_price;
-                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f", &room_id, name, description, &starting_price);
+                        float starting_price, buy_now_price;
+                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f|%f", &room_id, name, description, &starting_price, &buy_now_price);
 
-                        if (create_item(1, room_id, name, description, starting_price)) // Admin id 1
+                        if (create_item(1, room_id, name, description, starting_price, buy_now_price)) // Admin id 1
                         {
                             build_message(&message, 5, "Item created successfully");
                         }
@@ -258,12 +258,12 @@ int main()
                             {
                                 if (has_room_started(room_id))
                                 {
-                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                    countdown_room_duration(sock, room->id, room->duration);
                                 }
                                 else
                                 {
                                     countdown_to_start_time(sock, room->start_time);
-                                    countdown_room_duration(sock, room->start_time, room->duration);
+                                    countdown_room_duration(sock, room->id, room->duration);
                                 }
                             }
                         }
@@ -296,6 +296,87 @@ int main()
                         char room_list[BUFFER_SIZE] = "";
                         list_rooms(room_list, sizeof(room_list));
                         build_message(&message, 11, room_list);
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 12: // BID_REQUEST
+                    {
+                        int user_id, room_id;
+                        float bid_amount;
+                        sscanf(message.payload, "%d|%d|%f", &user_id, &room_id, &bid_amount);
+
+                        printf("Log_SERVER: BID_REQUEST received\n");
+                        printf("Log_SERVER: user_id=%d, room_id=%d, bid_amount=%.2f\n", user_id, room_id, bid_amount);
+
+                        if (process_bid(user_id, room_id, bid_amount))
+                        {
+                            build_message(&message, 12, "Bid accepted\n");
+                        }
+                        else
+                        {
+                            build_message(&message, 12, "Bid rejected\n");
+                        }
+                        send(sock, &message, sizeof(Message), 0);
+                        break;
+                    }
+                    case 13: // Search items
+                    {
+                        char keyword[50] = "", start_time[20] = "", end_time[20] = "";
+                        char *ptr = message.payload;
+
+                        printf("Log_SERVER: SEARCH_ITEMS_REQUEST received\n");
+
+                        // Parse the keyword (first field)
+                        if (*ptr != '|') {  // Check if the first field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(keyword, ptr, 1);
+                                ptr++;
+                            }
+                        }
+                        ptr++;  // Skip over the '|' character
+
+                        // Parse the start_time (second field)
+                        if (*ptr != '|') {  // Check if the second field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(start_time, ptr, 1);
+                                ptr++;
+                            }
+                        }
+                        ptr++;  // Skip over the '|' character
+
+                        // Parse the end_time (third field)
+                        if (*ptr != '|') {  // Check if the third field is not empty
+                            while (*ptr != '\0' && *ptr != '|') {
+                                strncat(end_time, ptr, 1);
+                                ptr++;
+                            }
+                        }
+
+                        search_items(sock, keyword, start_time, end_time);
+                        break;
+                    }
+                    case 14:
+                    {
+                        int user_id, room_id;
+                        sscanf(message.payload, "%d|%d", &user_id, &room_id);
+
+                        printf("LOG_SERVER: Buy now request received from User ID %d for Room ID %d\n", user_id, room_id);
+
+                        Item *item = find_item(room_id);
+                        if (item && item->status == 0)
+                        {
+                            item->current_price = item->buy_now_price;
+                            item->highest_bidder = user_id;
+                            item->status = 1; // Đánh dấu vật phẩm là "sold"
+                            save_all_items_to_file();
+
+                            // Gửi phản hồi cho client
+                            build_message(&message, 100, "Item bought successfully with buy now price!\n");
+                        }
+                        else
+                        {
+                            build_message(&message, 100, "Buy now failed: Item is no longer available.\n");
+                        }
                         send(sock, &message, sizeof(Message), 0);
                         break;
                     }

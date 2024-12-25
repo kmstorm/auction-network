@@ -1,10 +1,12 @@
 // client.c
 
-#include<stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <fcntl.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -25,15 +27,24 @@ enum MessageType {
     IS_ADMIN_REQUEST = 8,
     JOIN_ROOM_REQUEST = 9,
     LEAVE_ROOM_REQUEST = 10,
-    LIST_ROOMS_REQUEST = 11
+    LIST_ROOMS_REQUEST = 11,
+    BID_REQUEST = 12,
+    SEARCH_ITEMS_REQUEST = 13,
+    BUY_NOW_REQUEST = 14,
 };
+
+typedef struct {
+    int sock;
+    int room_id;
+    int user_id;
+} ThreadArgs;
 
 void send_register_request(int sock, const char *username, const char *password);
 void send_login_request(int sock, const char *username, const char *password);
 void send_logout_request(int sock, const char *username);
 void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration);
 void send_delete_room_request(int sock, int room_id);
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price);
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price);
 void send_delete_item_request(int sock, int room_id, int item_id);
 void send_list_items_request(int sock, int room_id);
 void send_is_admin_request(int sock, const char *username);
@@ -41,7 +52,11 @@ int is_admin_response(int sock);
 void send_join_room_request(int sock, int user_id, int room_id);
 void send_leave_room_request(int sock, int user_id, int room_id);
 void send_list_rooms_request(int sock);
-void handle_timer_response(int sock);
+void send_bid_request(int sock, int user_id, int room_id, float bid_amount);
+void* handle_timer_response(void* arg);
+void* handle_user_input(void* arg);
+void send_search_items_request(int sock, const char *keyword, const char *start_time, const char *end_time);
+void send_buy_now_request(int sock, int user_id, int room_id);
 
 int main()
 {
@@ -161,14 +176,15 @@ int main()
             printf("2. Exit\n");
             printf("3. List Room\n");
             printf("4. Join Room\n");
+            printf("5. Search Items\n");
 
             if (is_admin)
             {
-                printf("5. Create Room\n");
-                printf("6. Delete Room\n");
-                printf("7. Add item\n");
-                printf("8. Delete item\n");
-                printf("9. List items\n");
+                printf("6. Create Room\n");
+                printf("7. Delete Room\n");
+                printf("8. Add item\n");
+                printf("9. Delete item\n");
+                printf("10. List items\n");
             }
 
             printf("Enter your choice: ");
@@ -204,18 +220,77 @@ int main()
                 printf("Enter room ID to join: ");
                 scanf("%d", &room_id);
                 send_join_room_request(sock, user_id, room_id);
+
                 if (recv(sock, &response, sizeof(Message), 0) > 0)
                 {
                     printf("Server response: %s\n", response.payload);
                     if (strcmp(response.payload, "Joined room successfully") == 0)
                     {
-                        inside_room = 1; // Mark user as inside the room
-                        handle_timer_response(sock);
+                        printf("To place a bid, type the amount.\n");
+                        printf("Type 'max' to buy now.\n");
+                        printf("Type 'exit' to leave the room.\n\n");
+
+                        inside_room = 1;
+
+                        pthread_t timer_thread, input_thread;
+
+                        // Create a struct to hold the arguments
+                        ThreadArgs args;
+                        args.sock = sock;
+                        args.room_id = room_id;
+                        args.user_id = user_id;
+
+                        // Thread 1: Receive timer updates from server
+                        if (pthread_create(&timer_thread, NULL, handle_timer_response, &sock) != 0)
+                        {
+                            perror("Failed to create timer thread");
+                            break;
+                        }
+
+                        // Thread 2: Handle user input
+                        if (pthread_create(&input_thread, NULL, handle_user_input, &args) != 0)
+                        {
+                            perror("Failed to create input thread");
+                            break;
+                        }
+
+                        // Wait for both threads to complete
+                        pthread_join(timer_thread, NULL);
+                        pthread_join(input_thread, NULL);
                     }
                 }
                 break;
 
-            case 5: // Create room
+            case 5: // Search items
+            {
+                char keyword[50] = "", start_time[20] = "", end_time[20] = "";
+                int c;
+
+                // Clear the input buffer
+                while ((c = getchar()) != '\n' && c != EOF) {}
+
+                printf("Enter keyword (or leave empty): ");
+                fgets(keyword, sizeof(keyword), stdin);
+                if (keyword[strlen(keyword) - 1] == '\n') keyword[strlen(keyword) - 1] = '\0';
+
+                printf("Enter start time (YYYY-MM-DDTHH:MM) (or leave empty): ");
+                fgets(start_time, sizeof(start_time), stdin);
+                if (start_time[strlen(start_time) - 1] == '\n') start_time[strlen(start_time) - 1] = '\0';
+
+                printf("Enter end time (YYYY-MM-DDTHH:MM) (or leave empty): ");
+                fgets(end_time, sizeof(end_time), stdin);
+                if (end_time[strlen(end_time) - 1] == '\n') end_time[strlen(end_time) - 1] = '\0';
+
+                send_search_items_request(sock, keyword, start_time, end_time);
+                if (recv(sock, &response, sizeof(Message), 0) > 0)
+                {
+                    printf("Server response: %s\n", response.payload);
+                }
+            }
+            break;
+
+
+            case 6: // Create room
                 if (is_admin)
                 {
                     char room_name[50], description[200], start_time[20];
@@ -240,7 +315,7 @@ int main()
                 }
                 break;
 
-            case 6: // Delete room
+            case 7: // Delete room
                 if (is_admin)
                 {
                     int room_id;
@@ -258,12 +333,12 @@ int main()
                 }
                 break;
 
-            case 7: // Add item
+            case 8: // Add item
                 if (is_admin)
                 {
                     int room_id;
                     char name[50], description[200];
-                    float starting_price;
+                    float starting_price, buy_now_price;
                     printf("Enter room ID: ");
                     scanf("%d", &room_id);
                     printf("Enter item name: ");
@@ -272,7 +347,9 @@ int main()
                     scanf("%s", description);
                     printf("Enter starting price: ");
                     scanf("%f", &starting_price);
-                    send_create_item_request(sock, room_id, name, description, starting_price);
+                    printf("Enter buy now price: ");
+                    scanf("%f", &buy_now_price);
+                    send_create_item_request(sock, room_id, name, description, starting_price, buy_now_price);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
@@ -284,7 +361,7 @@ int main()
                 }
                 break;
 
-            case 8: // Delete item
+            case 9: // Delete item
                 if (is_admin)
                 {
                     int room_id, item_id;
@@ -304,7 +381,7 @@ int main()
                 }
                 break;
 
-            case 9: // List items
+            case 10: // List items
                 if (is_admin)
                 {
                     int room_id;
@@ -397,12 +474,14 @@ void send_delete_room_request(int sock, int room_id)
     send(sock, &message, sizeof(message), 0);
 }
 
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price)
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price)
 {
     Message message;
     message.message_type = CREATE_ITEM_REQUEST;
-    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%f", room_id, name, description, starting_price);
-    send(sock, &message, sizeof(message), 0);
+    printf("%.2f\n",buy_now_price);
+    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%.2f|%.2f", 
+             room_id, name, description, starting_price, buy_now_price);
+    send(sock, &message, sizeof(Message), 0);
 }
 
 void send_delete_item_request(int sock, int room_id, int item_id)
@@ -441,18 +520,94 @@ int is_admin_response(int sock)
     return 0;
 }
 
-void handle_timer_response(int sock)
+void send_bid_request(int sock, int user_id, int room_id, float bid_amount)
 {
+    Message message;
+    message.message_type = BID_REQUEST;
+    snprintf(message.payload, sizeof(message.payload), "%d|%d|%.2f", user_id, room_id, bid_amount);
+    send(sock, &message, sizeof(message), 0);
+}
+
+void send_buy_now_request(int sock, int user_id, int room_id)
+{
+    Message message;
+    message.message_type = BUY_NOW_REQUEST; // Sử dụng loại message mới cho "buy now"
+    snprintf(message.payload, sizeof(message.payload), "%d|%d", user_id, room_id);
+    send(sock, &message, sizeof(Message), 0);
+}
+
+void* handle_timer_response(void* arg)
+{
+    int sock = *(int*)arg;
     Message response;
+
+    // Set the socket to non-blocking mode
+    fcntl(sock, F_SETFL, O_NONBLOCK);
+
     while (1)
     {
+        // Receive data from the server if available
         if (recv(sock, &response, sizeof(Message), 0) > 0)
         {
             printf("%s\n", response.payload);
-            if (strcmp(response.payload, "Auction room has ended!") == 0)
+
+            // If the auction room has ended, break the loop
+            if (strcmp(response.payload, "Auction ended for this item\n") == 0)
             {
+                printf("Auction has ended. Returning to menu.\n");
                 break;
             }
         }
+        usleep(100000); // Sleep for 100ms to avoid busy-waiting
     }
+    return NULL;
+}
+
+
+void* handle_user_input(void* arg)
+{
+    ThreadArgs* args = (ThreadArgs*)arg;
+    int sock = args->sock;
+    int room_id = args->room_id;
+    int user_id = args->user_id;
+    char input[50];
+
+    while (1)
+    {
+        // printf("Enter your bid, or type 'max' to directly buy, type 'exit' to leave: ");
+        scanf("%s", input);
+
+        if (strcmp(input, "exit") == 0)
+        {
+            send_leave_room_request(sock, user_id, room_id);
+            break;
+        }
+        else if (strcmp(input, "max") == 0)
+        {
+            send_buy_now_request(sock, user_id, room_id);
+        }
+        else
+        {
+            float bid_amount = atof(input);
+            if (bid_amount > 0) // Ensure bid amount is valid
+            {
+                printf("Sending bid request: User ID %d, Room ID %d, Bid Amount %.2f\n", user_id, room_id, bid_amount);
+                send_bid_request(sock, user_id, room_id, bid_amount);
+            }
+            else
+            {
+                printf("Invalid bid amount. Please enter a valid number.\n");
+            }
+        }
+    }
+    return NULL;
+}
+
+void send_search_items_request(int sock, const char *keyword, const char *start_time, const char *end_time)
+{
+    Message message;
+    char payload[BUFFER_SIZE];
+    snprintf(payload, sizeof(payload), "%s|%s|%s", keyword, start_time, end_time);
+    build_message(&message, SEARCH_ITEMS_REQUEST, payload);
+    send(sock, &message, sizeof(Message), 0);
 }

@@ -2,6 +2,7 @@
   "files.associations": {
     "message.h": "c",
     "stdio.h": "c",
-    "stdlib.h": "c"
+    "stdlib.h": "c",
+    "item.h": "c"
   }
 }

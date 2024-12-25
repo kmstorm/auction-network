@@ -4,6 +4,6 @@
 #include <time.h>
 
 void countdown_to_start_time(int sock, const char *start_time);
-void countdown_room_duration(int sock, const char *start_time, int duration);
+void countdown_room_duration(int sock, int room_id, int duration);
 
 #endif
