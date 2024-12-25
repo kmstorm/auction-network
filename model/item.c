@@ -81,10 +81,10 @@ void save_all_items_to_file()
 }
 
 /* Create a new item - only admin can do this */
-int create_item(int admin_id, int room_id, const char *name, const char *description, float starting_price)
+int create_item(int admin_id, int room_id, const char *name, const char *description, float starting_price, float buy_now_price)
 {
-  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%.2f\n",
-          admin_id, room_id, name, description, starting_price);
+  printf("Log_CREATE_ITEM: create_item called with admin_id=%d, room_id=%d, name=%s, description=%s, starting_price=%.2f, buy_now_price=%.2f\n",
+          admin_id, room_id, name, description, starting_price, buy_now_price);
 
   if (admin_id != 1) // Only admin (id 1) can create items
   {
@@ -101,6 +101,7 @@ int create_item(int admin_id, int room_id, const char *name, const char *descrip
       strcpy(new_item.description, description);
       new_item.starting_price = starting_price;
       new_item.current_price = starting_price; // Current price starts with starting price
+      new_item.buy_now_price = buy_now_price;
       new_item.highest_bidder = -1;           // No bidder yet
       new_item.status = 0;                    // Available
 
@@ -153,8 +154,8 @@ void list_items(int room_id)
     {
         if (items[i].room_id == room_id)  // Only list items for the specified room
         {
-            printf("ID: %d, Name: %s, Price: %.2f, Status: %s\n",
-                  items[i].id, items[i].name, items[i].starting_price,
+            printf("ID: %d, Name: %s, Starting Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
+                  items[i].id, items[i].name, items[i].starting_price, items[i].buy_now_price,
                   items[i].status == 0 ? "Available" : "Sold");
             item_found = 1;
         }
@@ -208,9 +209,10 @@ void search_items(int sock, const char *keyword, const char *start_time, const c
         if (keyword_match && time_match)
         {
             char item_info[256];
-            snprintf(item_info, sizeof(item_info), "\nRoom ID: %d, Item ID: %d, Name: %s, Description: %s, Start Time: %s, Current Price: %.2f, Status: %s\n",
+            snprintf(item_info, sizeof(item_info),
+                     "\nRoom ID: %d, Item ID: %d, Name: %s, Description: %s, Start Time: %s, Current Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
                      items[i].room_id, items[i].id, items[i].name, items[i].description, room->start_time,
-                     items[i].current_price, items[i].status == 0 ? "Available" : "Sold");
+                     items[i].current_price, items[i].buy_now_price, items[i].status == 0 ? "Available" : "Sold");
             strncat(result, item_info, sizeof(result) - strlen(result) - 1);
             item_found = 1;
         }

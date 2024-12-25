@@ -185,10 +185,10 @@ int main()
                         // Parse the message for room_id, item details
                         int room_id;
                         char name[50], description[200];
-                        float starting_price;
-                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f", &room_id, name, description, &starting_price);
+                        float starting_price, buy_now_price;
+                        sscanf(message.payload, "%d|%49[^|]|%199[^|]|%f|%f", &room_id, name, description, &starting_price, &buy_now_price);
 
-                        if (create_item(1, room_id, name, description, starting_price)) // Admin id 1
+                        if (create_item(1, room_id, name, description, starting_price, buy_now_price)) // Admin id 1
                         {
                             build_message(&message, 5, "Item created successfully");
                         }
@@ -310,11 +310,11 @@ int main()
 
                         if (process_bid(user_id, room_id, bid_amount))
                         {
-                            build_message(&message, 12, "Bid accepted");
+                            build_message(&message, 12, "Bid accepted\n");
                         }
                         else
                         {
-                            build_message(&message, 12, "Bid rejected");
+                            build_message(&message, 12, "Bid rejected\n");
                         }
                         send(sock, &message, sizeof(Message), 0);
                         break;
@@ -353,6 +353,31 @@ int main()
                         }
 
                         search_items(sock, keyword, start_time, end_time);
+                        break;
+                    }
+                    case 14:
+                    {
+                        int user_id, room_id;
+                        sscanf(message.payload, "%d|%d", &user_id, &room_id);
+
+                        printf("LOG_SERVER: Buy now request received from User ID %d for Room ID %d\n", user_id, room_id);
+
+                        Item *item = find_item(room_id);
+                        if (item && item->status == 0)
+                        {
+                            item->current_price = item->buy_now_price;
+                            item->highest_bidder = user_id;
+                            item->status = 1; // Đánh dấu vật phẩm là "sold"
+                            save_all_items_to_file();
+
+                            // Gửi phản hồi cho client
+                            build_message(&message, 100, "Item bought successfully with buy now price!\n");
+                        }
+                        else
+                        {
+                            build_message(&message, 100, "Buy now failed: Item is no longer available.\n");
+                        }
+                        send(sock, &message, sizeof(Message), 0);
                         break;
                     }
                     default:

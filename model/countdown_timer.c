@@ -103,6 +103,9 @@ void countdown_room_duration(int sock, int room_id, int duration)
         Message bid_message;
         if (recv(sock, &bid_message, sizeof(Message), MSG_DONTWAIT) > 0)
         {
+            if (bid_message.message_type == 14) {
+                break;
+            }
             int user_id, bid_room_id;
             float bid_amount;
 

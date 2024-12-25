@@ -30,6 +30,7 @@ enum MessageType {
     LIST_ROOMS_REQUEST = 11,
     BID_REQUEST = 12,
     SEARCH_ITEMS_REQUEST = 13,
+    BUY_NOW_REQUEST = 14,
 };
 
 typedef struct {
@@ -43,7 +44,7 @@ void send_login_request(int sock, const char *username, const char *password);
 void send_logout_request(int sock, const char *username);
 void send_create_room_request(int sock, const char *room_name, const char *description, const char *start_time, int duration);
 void send_delete_room_request(int sock, int room_id);
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price);
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price);
 void send_delete_item_request(int sock, int room_id, int item_id);
 void send_list_items_request(int sock, int room_id);
 void send_is_admin_request(int sock, const char *username);
@@ -55,6 +56,7 @@ void send_bid_request(int sock, int user_id, int room_id, float bid_amount);
 void* handle_timer_response(void* arg);
 void* handle_user_input(void* arg);
 void send_search_items_request(int sock, const char *keyword, const char *start_time, const char *end_time);
+void send_buy_now_request(int sock, int user_id, int room_id);
 
 int main()
 {
@@ -224,6 +226,10 @@ int main()
                     printf("Server response: %s\n", response.payload);
                     if (strcmp(response.payload, "Joined room successfully") == 0)
                     {
+                        printf("To place a bid, type the amount.\n");
+                        printf("Type 'max' to buy now.\n");
+                        printf("Type 'exit' to leave the room.\n\n");
+
                         inside_room = 1;
 
                         pthread_t timer_thread, input_thread;
@@ -332,7 +338,7 @@ int main()
                 {
                     int room_id;
                     char name[50], description[200];
-                    float starting_price;
+                    float starting_price, buy_now_price;
                     printf("Enter room ID: ");
                     scanf("%d", &room_id);
                     printf("Enter item name: ");
@@ -341,7 +347,9 @@ int main()
                     scanf("%s", description);
                     printf("Enter starting price: ");
                     scanf("%f", &starting_price);
-                    send_create_item_request(sock, room_id, name, description, starting_price);
+                    printf("Enter buy now price: ");
+                    scanf("%f", &buy_now_price);
+                    send_create_item_request(sock, room_id, name, description, starting_price, buy_now_price);
                     if (recv(sock, &response, sizeof(Message), 0) > 0)
                     {
                         printf("Server response: %s\n", response.payload);
@@ -466,12 +474,14 @@ void send_delete_room_request(int sock, int room_id)
     send(sock, &message, sizeof(message), 0);
 }
 
-void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price)
+void send_create_item_request(int sock, int room_id, const char *name, const char *description, float starting_price, float buy_now_price)
 {
     Message message;
     message.message_type = CREATE_ITEM_REQUEST;
-    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%f", room_id, name, description, starting_price);
-    send(sock, &message, sizeof(message), 0);
+    printf("%.2f\n",buy_now_price);
+    snprintf(message.payload, sizeof(message.payload), "%d|%s|%s|%.2f|%.2f", 
+             room_id, name, description, starting_price, buy_now_price);
+    send(sock, &message, sizeof(Message), 0);
 }
 
 void send_delete_item_request(int sock, int room_id, int item_id)
@@ -518,6 +528,14 @@ void send_bid_request(int sock, int user_id, int room_id, float bid_amount)
     send(sock, &message, sizeof(message), 0);
 }
 
+void send_buy_now_request(int sock, int user_id, int room_id)
+{
+    Message message;
+    message.message_type = BUY_NOW_REQUEST; // Sử dụng loại message mới cho "buy now"
+    snprintf(message.payload, sizeof(message.payload), "%d|%d", user_id, room_id);
+    send(sock, &message, sizeof(Message), 0);
+}
+
 void* handle_timer_response(void* arg)
 {
     int sock = *(int*)arg;
@@ -556,13 +574,17 @@ void* handle_user_input(void* arg)
 
     while (1)
     {
-        printf("Enter your bid or type 'exit' to leave: ");
+        // printf("Enter your bid, or type 'max' to directly buy, type 'exit' to leave: ");
         scanf("%s", input);
 
         if (strcmp(input, "exit") == 0)
         {
             send_leave_room_request(sock, user_id, room_id);
             break;
+        }
+        else if (strcmp(input, "max") == 0)
+        {
+            send_buy_now_request(sock, user_id, room_id);
         }
         else
         {

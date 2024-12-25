@@ -12,6 +12,7 @@ static int room_count = 0;
 /* Load rooms from file */
 void load_rooms_from_file()
 {
+  room_count = 0;
   FILE *file = fopen(ROOM_FILE, "r");
   if (!file)
   {
@@ -237,17 +238,7 @@ void list_room_items(int room_id)
   list_items(room_id);
 }
 
-/* Create an item in the room - only admin can do this */
-int create_item_in_room(int admin_id, int room_id, const char *name, const char *description, float starting_price)
-{
-  return create_item(admin_id, room_id, name, description, starting_price);
-}
 
-/* Delete an item from the room - only admin can do this */
-int delete_item_from_room(int admin_id, int room_id, int item_id)
-{
-  return delete_item(admin_id, room_id, item_id);
-}
 
 int process_bid(int user_id, int room_id, float bid_amount)
 {
