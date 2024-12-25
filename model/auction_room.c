@@ -184,6 +184,7 @@ int join_room(int user_id, int room_id)
         {
             if (strcmp(rooms[i].participants[j], "") != 0 && user_id == atoi(rooms[i].participants[j]))
             {
+                printf("Log_JOIN_ROOM: User %d is already in another room\n", user_id);
                 return 0; // User is already in another room
             }
         }

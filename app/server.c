@@ -10,6 +10,7 @@
 #include "../model/auction_room.h"
 #include "../model/item.h"
 #include "../model/countdown_timer.h"
+#include <pthread.h>
 
 #define PORT 8080
 #define MAX_CLIENTS 30
@@ -252,18 +253,24 @@ int main()
                             build_message(&message, 9, "Joined room successfully");
                             send(sock, &message, sizeof(Message), 0);
 
-                            // Start the countdown timer after sending the response
+                            // Start the countdown timer in a new thread
                             AuctionRoom *room = get_room_by_id(room_id);
                             if (room != NULL)
                             {
+                                pthread_t timer_thread;
+                                CountdownArgs* args = malloc(sizeof(CountdownArgs));
+                                args->sock = sock;
+                                args->room_id = room->id;
+                                args->duration = room->duration;
+
                                 if (has_room_started(room_id))
                                 {
-                                    countdown_room_duration(sock, room->id, room->duration);
+                                    pthread_create(&timer_thread, NULL, countdown_thread, args);
                                 }
                                 else
                                 {
                                     countdown_to_start_time(sock, room->start_time);
-                                    countdown_room_duration(sock, room->id, room->duration);
+                                    pthread_create(&timer_thread, NULL, countdown_thread, args);
                                 }
                             }
                         }

@@ -156,7 +156,6 @@ void list_items(int room_id)
     int item_found = 0;
     for (int i = 0; i < item_count; i++)
     {
-        printf("Log_LIST_ITEMS: Checking item ID %d, room_id=%d, status=%d\n", items[i].id, items[i].room_id, items[i].status);
         if (items[i].room_id == room_id)  // Only list items for the specified room
         {
             printf("ID: %d, Name: %s, Starting Price: %.2f, Buy Now Price: %.2f, Status: %s\n",

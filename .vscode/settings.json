@@ -3,6 +3,7 @@
     "message.h": "c",
     "stdio.h": "c",
     "stdlib.h": "c",
-    "item.h": "c"
+    "item.h": "c",
+    "auction_room.h": "c"
   }
 }
