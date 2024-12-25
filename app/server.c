@@ -218,12 +218,12 @@ int main()
                     }
                     case 7: // LIST_ITEMS_REQUEST
                     {
+                        printf("Log_SERVER: LIST_ITEMS_REQUEST received\n");
                         int room_id;
                         sscanf(message.payload, "%d", &room_id); // Get the room ID from the message
-
-                        list_items(room_id);
-
-                        build_message(&message, 7, "Items listed successfully.");
+                        char item_list[BUFFER_SIZE] = "";
+                        list_items(room_id, item_list, sizeof(item_list));
+                        build_message(&message, 7, item_list);
                         send(sock, &message, sizeof(Message), 0);
                         break;
                     }

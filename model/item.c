@@ -151,23 +151,28 @@ int delete_item(int admin_id, int room_id, int item_id)
 }
 
 /* List all items in a specific room */
-void list_items(int room_id)
+void list_items(int room_id, char *item_list, size_t item_list_size)
 {
+    item_list[0] = '\0'; // Initialize the item list string
     int item_found = 0;
+
     for (int i = 0; i < item_count; i++)
     {
-        if (items[i].room_id == room_id)  // Only list items for the specified room
+        if (items[i].room_id == room_id) // Only list items for the specified room
         {
-            printf("ID: %d, Name: %s, Starting Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
-                  items[i].id, items[i].name, items[i].starting_price, items[i].buy_now_price,
-                  items[i].status == 0 ? "Available" : "Sold");
+            char item_info[256];
+            snprintf(item_info, sizeof(item_info),
+                     "ID: %d, Name: %s, Starting Price: %.2f, Buy Now Price: %.2f, Status: %s\n",
+                     items[i].id, items[i].name, items[i].starting_price, items[i].buy_now_price,
+                     items[i].status == 0 ? "Available" : "Sold");
+            strncat(item_list, item_info, item_list_size - strlen(item_list) - 1);
             item_found = 1;
         }
     }
 
     if (!item_found)
     {
-        printf("No items found for room ID %d\n", room_id);  // If no items are found in the room
+        snprintf(item_list, item_list_size, "No items found for room ID %d\n", room_id);
     }
 }
 

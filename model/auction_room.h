@@ -28,7 +28,6 @@ void list_rooms(char *room_list, size_t room_list_size);
 int has_room_started(int room_id);
 int join_room(int user_id, int room_id);
 int leave_room(int user_id, int room_id);
-void list_room_items(int room_id);
 int process_bid(int user_id, int room_id, float bid_amount);
 
 #endif

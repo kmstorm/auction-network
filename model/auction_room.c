@@ -233,13 +233,6 @@ int leave_room(int user_id, int room_id)
     return 0;
 }
 
-void list_room_items(int room_id)
-{
-  list_items(room_id);
-}
-
-
-
 int process_bid(int user_id, int room_id, float bid_amount)
 {
     // Gọi hàm find_item để tìm vật phẩm đang đấu giá trong room
