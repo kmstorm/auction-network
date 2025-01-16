@@ -9,16 +9,31 @@ This is final project for SoICT Network Programming Lab.
 ├── app
 │   ├── client.c
 │   ├── server.c
-│   └── users.txt
 ├── GUI
-│   ├── gui
-│   └── gui.c
 ├── model
 │   ├── message.c
 │   ├── message.h
+│   ├── auction_room.c
+│   ├── auction_room.h
+│   ├── countdown_timer.c
+│   ├── countdown_timer.h
+│   ├── item.c
+│   ├── item.h
 │   ├── user.c
 │   └── user.h
-├── README.MD
+├── release
+│   ├── client
+│   ├── server
+│   ├── Makefile
+│   ├── client.o
+│   ├── server.o
+│   ├── auction_room.o
+│   ├── item.o
+│   ├── countdown_timer.o
+│   ├── message.o
+│   ├── items.txt
+│   ├── rooms.txt
+│   └── users.txt
 ```
 
 **To run**
